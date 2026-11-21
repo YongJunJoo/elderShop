@@ -1,0 +1,6 @@
+anthropic>=2.12
+pydantic>=2.7
+pillow>=10
+google-api-python-client>=2.130
+google-auth-oauthlib>=1.2
+google-cloud-texttospeech>=2.16
