@@ -6,7 +6,7 @@ from pathlib import Path
 
 import anthropic
 
-from .models import Product, ShortScript
+from .models import Bundle, Product, ShortScript
 
 ROOT = Path(__file__).resolve().parent.parent
 MODEL = "claude-opus-5-5"
@@ -47,19 +47,25 @@ def research_reviews(product: Product, client: anthropic.Anthropic | None = None
     return "\n".join(b.text for b in resp.content if b.type == "text").strip()
 
 
-def generate_script(product: Product, client: anthropic.Anthropic | None = None) -> ShortScript:
+def generate_script(item: Product | Bundle, client: anthropic.Anthropic | None = None) -> ShortScript:
+    """단품(Product) 또는 TOP3 묶음(Bundle)으로 대본을 만든다."""
     client = client or _client()
-    notes = product.review_notes or research_reviews(product, client)
+    products = item.products if isinstance(item, Bundle) else [item]
 
     system = SYSTEM
     if LEARNINGS.exists():
         system += "\n\n## 지난 영상 성과에서 배운 점\n" + LEARNINGS.read_text(encoding="utf-8")
 
-    user = (
-        "아래 상품으로 쇼츠 대본을 써 주세요.\n\n"
-        f"상품 정보:\n{product.model_dump_json(indent=2, exclude={'review_notes', 'images'})}\n\n"
-        f"리뷰 조사 메모:\n{notes}"
-    )
+    parts = []
+    for i, p in enumerate(products):
+        notes = p.review_notes or research_reviews(p, client)
+        parts.append(
+            f"### 상품 {i} (product_index={i})\n"
+            f"{p.model_dump_json(indent=2, exclude={'review_notes', 'images'})}\n\n리뷰 조사 메모:\n{notes}"
+        )
+    kind = f"묶음(TOP{len(products)}) 영상, 주제: {item.theme}" if isinstance(item, Bundle) else "단품 영상"
+    user = f"아래 상품으로 {kind} 대본을 써 주세요.\n\n" + "\n\n".join(parts)
+
     resp = client.messages.parse(
         model=MODEL,
         max_tokens=16000,

@@ -9,7 +9,8 @@ import os
 import subprocess
 from pathlib import Path
 
-SILENT_CHARS_PER_SEC = 5.0  # 느린 말투 기준 초당 글자 수(공백 제외)
+SILENT_CHARS_PER_SEC = 7.0  # 1.2배 말투 기준 초당 글자 수(공백 제외)
+GAP = 0.15  # 장면 사이 쉼(초)
 
 
 def audio_duration(path: Path) -> float:
@@ -31,19 +32,19 @@ def _google(text: str, path: Path) -> None:
         ),
         audio_config=tts.AudioConfig(
             audio_encoding=tts.AudioEncoding.MP3,
-            speaking_rate=float(os.getenv("TTS_RATE", "0.9")),  # 어르신용으로 약간 느리게
+            speaking_rate=float(os.getenv("TTS_RATE", "1.2")),  # 쇼츠 템포에 맞춰 약간 빠르게
         ),
     )
     path.write_bytes(resp.audio_content)
 
 
 def synthesize(text: str, path: Path) -> tuple[Path | None, float]:
-    """(오디오 경로 또는 None, 길이 초)를 돌려준다. 앞뒤 여유 0.4초 포함."""
+    """(오디오 경로 또는 None, 길이 초)를 돌려준다. 장면 사이 쉼 포함."""
     provider = os.getenv("TTS_PROVIDER", "google")
     if provider == "none":
         chars = len(text.replace(" ", ""))
-        return None, max(2.5, chars / SILENT_CHARS_PER_SEC) + 0.4
+        return None, max(1.5, chars / SILENT_CHARS_PER_SEC) + GAP
     if provider == "google":
         _google(text, path)
-        return path, audio_duration(path) + 0.4
+        return path, audio_duration(path) + GAP
     raise ValueError(f"알 수 없는 TTS_PROVIDER: {provider}")

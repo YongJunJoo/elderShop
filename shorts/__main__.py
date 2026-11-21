@@ -11,7 +11,7 @@ import json
 import os
 from pathlib import Path
 
-from .models import Product, ShortScript
+from .models import Bundle, Product, ShortScript
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -37,9 +37,11 @@ def _load_dotenv(path: Path = ROOT / ".env") -> None:
             os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS")
 
 
-def _load(product_path: str) -> tuple[Product, Path]:
-    product = Product.model_validate_json(Path(product_path).read_text(encoding="utf-8"))
-    return product, ROOT / "out" / product.slug
+def _load(product_path: str) -> tuple[Product | Bundle, Path]:
+    """products/*.json: 단품이면 Product, "products" 목록이 있으면 TOP3 묶음(Bundle)."""
+    data = json.loads(Path(product_path).read_text(encoding="utf-8"))
+    item = Bundle.model_validate(data) if "products" in data else Product.model_validate(data)
+    return item, ROOT / "out" / item.slug
 
 
 def _script(out_dir: Path) -> ShortScript:

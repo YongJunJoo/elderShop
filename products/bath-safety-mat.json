@@ -3,9 +3,13 @@
   "name": "욕실 미끄럼방지 매트",
   "category": "욕실 안전용품",
   "price_krw": 19000,
+  "link_no": 3,
   "affiliate_url": null,
   "images": [
-    "assets/sample/mat_illustration.png"
+    "assets/sample/mat_illustration.png",
+    "assets/sample/mat_bathroom.png",
+    "assets/sample/mat_closeup.png",
+    "assets/sample/mat_back.png"
   ],
   "review_notes": ""
 }

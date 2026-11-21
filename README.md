@@ -12,7 +12,7 @@
 | 단계 | 하는 일 | 사용 서비스 |
 |---|---|---|
 | ① script | 웹 검색으로 공개 리뷰를 모아 장점·불만 요약 → 50초 대본 JSON | Claude API (web search + structured output) |
-| ② render | 장면별 카드(라벨·상품 이미지·큰 자막) + TTS → 1080x1920 mp4 | Pillow, ffmpeg, Google Cloud TTS |
+| ② render | 상세 이미지 여러 장 1.7초 전환 + 줌·패닝, 상단 고정 2줄 제목, 말에 맞춘 짧은 자막, TTS 1.2배 → 25~30초 1080x1920 mp4 | Pillow, ffmpeg, Google Cloud TTS |
 | ③ upload | 제목·설명·태그·AI 생성 표시 넣어 업로드, 예약 공개 | YouTube Data API v3 |
 | ④ analyze | 영상별 조회수·시청 비율·구독 증가 수집, 교훈을 다음 대본에 반영 | YouTube Analytics API, Claude API |
 
@@ -49,6 +49,10 @@ python -m shorts analyze --days 28                      # → data/analytics_*.c
 
 음성 없이 화면만 미리 보려면 `TTS_PROVIDER=none python -m shorts render ... --force`.
 대본 예시는 `examples/bath-safety-mat.script.json`.
+
+상품 JSON의 `images`에 상세페이지 이미지 4~8장을 넣으면 화면이 1.7초마다 바뀝니다(`CUT_SEC`로 조정).
+`link_no`는 프로필 링크 모음의 번호이며, 영상 끝 "프로필 링크 N번"과 설명란·댓글 번호에 쓰입니다.
+TOP3 묶음 영상은 `{"slug": "...", "theme": "부모님 욕실 안전템", "products": [상품1, 상품2, 상품3]}` 형태로 만들면 됩니다.
 
 ## 비용 (하루 1편 기준, 대략)
 - Claude: 편당 리뷰 조사 + 대본 약 100~300원, 주간 분석 소액

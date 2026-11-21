@@ -1,4 +1,10 @@
-"""2단계: 대본 + 상품 이미지 + TTS → 1080x1920 세로 영상 (템플릿 합성)."""
+"""2단계: 대본 + 상세 이미지 여러 장 + TTS → 1080x1920 세로 영상.
+
+화면 구성
+- 상단: 영상 내내 고정되는 2줄 제목 + 광고 고지 (네이비 띠)
+- 아래 전체: 상품 이미지가 1.5~2초마다 바뀌며 줌·패닝 (꽉 찬 화면, 뒤는 같은 이미지 흐림)
+- 자막: 말에 맞춰 짧게 끊어 나오는 큰 자막
+"""
 from __future__ import annotations
 
 import io
@@ -8,9 +14,9 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 
-from .models import Product, ShortScript
+from .models import Bundle, Product, ShortScript
 from .tts import synthesize
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -18,52 +24,33 @@ FONTS = ROOT / "assets" / "fonts"
 FONT_B = str(FONTS / "NanumSquareB.ttf")
 FONT_R = str(FONTS / "NanumSquareR.ttf")
 
-W, H = 1080, 1920
-CHANNEL_NAME = os.getenv("CHANNEL_NAME", "어르신 살림 가이드")
+W, H, FPS = 1080, 1920, 30
+BAND_H = 430                      # 상단 제목 띠 높이
+CUT_SEC = float(os.getenv("CUT_SEC", "1.7"))   # 이미지 전환 간격
+ZOOM = 1.12                       # 컷마다 최대 확대
+CAPTION_Y = 1330                  # 자막 중심 (하단 쇼츠 UI 위)
 DISCLOSURE = "광고 · 쿠팡 파트너스 활동으로 수수료를 받을 수 있어요"
 MAX_TOTAL_SEC = 59.0
-
-LABELS = {
-    "hook": "잠깐 확인하세요",
-    "criteria": "고르는 기준",
-    "pros": "구매자들이 꼽은 장점",
-    "cons": "구매자들이 꼽은 불만",
-    "avoid": "이런 분은 피하세요",
-    "cta": "상품 정보",
-}
 
 
 @dataclass(frozen=True)
 class Theme:
-    bg: tuple
-    ink: tuple            # 큰 자막 색
-    sub: tuple            # 채널명·고지 색
-    accent: tuple         # 라벨·강조 색
-    accent_ink: tuple     # 라벨 글자색
-    card: tuple           # 상품 사진 카드 배경 (상품 사진은 대부분 흰 배경)
-    cons_accent: tuple    # 불만·피하세요 라벨 색
-    mark: tuple | None    # 자막 형광펜 색 (None이면 없음)
-    label_style: str      # "pill" | "tab"
+    band: tuple
+    title1: tuple
+    title2: tuple
+    sub: tuple
+    cap_box: tuple   # RGBA
+    cap_ink: tuple
 
 
 THEMES = {
-    # A. 네이비 홈쇼핑: 진한 남색 배경 + 흰 자막 + 노란 강조. 방송 느낌, 대비 최고
-    "navy": Theme(bg=(13, 33, 61), ink=(255, 255, 255), sub=(160, 178, 204), accent=(255, 205, 41),
-                  accent_ink=(13, 33, 61), card=(255, 255, 255), cons_accent=(255, 107, 87),
-                  mark=None, label_style="pill"),
-    # B. 클린 화이트: 흰 배경 + 검정 자막 + 초록 포인트. 정보 채널·신뢰감
-    "clean": Theme(bg=(255, 255, 255), ink=(17, 24, 39), sub=(120, 128, 140), accent=(4, 120, 87),
-                   accent_ink=(255, 255, 255), card=(255, 255, 255), cons_accent=(194, 65, 12),
-                   mark=None, label_style="tab"),
-    # C. 따뜻한 크림: 크림 배경 + 진갈색 자막 + 주황 형광펜. 생활·살림 느낌
-    "warm": Theme(bg=(250, 244, 235), ink=(43, 33, 24), sub=(150, 130, 110), accent=(217, 72, 15),
-                  accent_ink=(255, 255, 255), card=(255, 255, 255), cons_accent=(140, 60, 160),
-                  mark=(255, 214, 165), label_style="pill"),
+    "navy": Theme(band=(13, 33, 61), title1=(255, 255, 255), title2=(255, 205, 41), sub=(160, 178, 204),
+                  cap_box=(13, 33, 61, 215), cap_ink=(255, 255, 255)),
 }
 
 
 def current_theme() -> Theme:
-    return THEMES[os.getenv("VIDEO_THEME", "navy")]
+    return THEMES.get(os.getenv("VIDEO_THEME", "navy"), THEMES["navy"])
 
 
 def _font(path: str, size: int) -> ImageFont.FreeTypeFont:
@@ -79,137 +66,188 @@ def _load_image(src: str) -> Image.Image | None:
         if not p.is_absolute():
             p = ROOT / p
         return Image.open(p).convert("RGB")
-    except Exception as e:  # 이미지가 없어도 영상은 만든다
+    except Exception as e:  # 이미지 하나가 없어도 영상은 만든다
         print(f"[render] 이미지 불러오기 실패 {src}: {e}")
         return None
 
 
-def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> list[str]:
-    lines: list[str] = []
-    for para in text.split("\n"):
-        cur = ""
-        for word in para.split(" "):
-            trial = f"{cur} {word}".strip()
-            if draw.textlength(trial, font=font) <= max_w:
-                cur = trial
-            else:
-                if cur:
-                    lines.append(cur)
-                cur = word
-        lines.append(cur)
-    return lines
+# ---------- 정지 레이어 ----------
+
+def draw_band(top_title: str, t: Theme) -> Image.Image:
+    band = Image.new("RGB", (W, BAND_H), t.band)
+    d = ImageDraw.Draw(band)
+    lines = (top_title.split("\n") + [""])[:2]
+    size = 88
+    while size > 60 and max(d.textlength(l, font=_font(FONT_B, size)) for l in lines) > W - 120:
+        size -= 4
+    f = _font(FONT_B, size)
+    d.text((W // 2, 195), lines[0], font=f, fill=t.title1, anchor="mm", stroke_width=2, stroke_fill=t.title1)
+    d.text((W // 2, 195 + int(size * 1.2)), lines[1], font=f, fill=t.title2, anchor="mm",
+           stroke_width=2, stroke_fill=t.title2)
+    d.text((W // 2, BAND_H - 28), DISCLOSURE, font=_font(FONT_R, 28), fill=t.sub, anchor="mm")
+    return band
 
 
-def _rounded_paste(base: Image.Image, im: Image.Image, xy: tuple[int, int], radius: int) -> None:
-    mask = Image.new("L", im.size, 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, im.width, im.height), radius=radius, fill=255)
-    base.paste(im, xy, mask)
+def _edge_color(img: Image.Image) -> tuple[tuple, float]:
+    """테두리 픽셀의 평균색과 얼마나 고른지(표준편차). 흰 배경 상품 사진 판별용."""
+    from PIL import ImageStat
+    w, h = img.size
+    strips = [img.crop((0, 0, w, 8)), img.crop((0, h - 8, w, h)), img.crop((0, 0, 8, h)), img.crop((w - 8, 0, w, h))]
+    mean = [0.0, 0.0, 0.0]
+    std = 0.0
+    for st in (ImageStat.Stat(x) for x in strips):
+        mean = [m + v / 4 for m, v in zip(mean, st.mean)]
+        std = max(std, max(st.stddev))
+    return tuple(int(v) for v in mean), std
 
 
-def draw_frame(scene_kind: str, caption: str, idx: int, total: int,
-               product_img: Image.Image | None, product_name: str, criteria_no: int | None,
-               theme: Theme | None = None) -> Image.Image:
-    t = theme or current_theme()
-    img = Image.new("RGB", (W, H), t.bg)
-    d = ImageDraw.Draw(img)
-    M = 72  # 좌우 여백
-
-    # ① 상단: 채널명 + 광고 고지 (쇼츠 상단 UI 아래)
-    d.text((M, 150), CHANNEL_NAME, font=_font(FONT_B, 40), fill=t.sub)
-    d.text((M, 205), DISCLOSURE, font=_font(FONT_R, 30), fill=t.sub)
-
-    # ② 상품 사진 카드 (그림자 + 둥근 모서리)
-    cx0, cy0, cx1, cy1 = M, 280, W - M, 1000
-    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).rounded_rectangle((cx0, cy0 + 14, cx1, cy1 + 14), radius=40, fill=(0, 0, 0, 60))
-    img.paste(shadow.filter(ImageFilter.GaussianBlur(18)), (0, 0), shadow.filter(ImageFilter.GaussianBlur(18)))
-    border = (226, 230, 236) if t.bg == t.card else None
-    d.rounded_rectangle((cx0, cy0, cx1, cy1), radius=40, fill=t.card, outline=border, width=3)
-    if product_img is not None:
-        fitted = ImageOps.contain(product_img, (cx1 - cx0 - 80, cy1 - cy0 - 80))
-        _rounded_paste(img, fitted, (cx0 + (cx1 - cx0 - fitted.width) // 2,
-                                     cy0 + (cy1 - cy0 - fitted.height) // 2), 24)
+def image_canvas(img: Image.Image) -> Image.Image:
+    """띠 아래 영역(1080x1490)을 꽉 채우는 이미지.
+    흰(단색) 배경 상품 사진은 그 색으로 이어 붙이고, 생활 사진은 흐린 확대본을 뒤에 깐다."""
+    cw, ch = W, H - BAND_H
+    color, std = _edge_color(img)
+    if std < 12:
+        bg = Image.new("RGB", (cw, ch), color)
     else:
-        d.text(((cx0 + cx1) // 2, (cy0 + cy1) // 2), product_name,
-               font=_font(FONT_B, 56), fill=t.sub, anchor="mm")
-
-    # ③ 장면 라벨
-    label = LABELS[scene_kind] + (f" {criteria_no}" if criteria_no else "")
-    color = t.cons_accent if scene_kind in ("cons", "avoid") else t.accent
-    lf = _font(FONT_B, 54)
-    ly = 1070
-    if t.label_style == "pill":
-        lw = d.textlength(label, font=lf)
-        d.rounded_rectangle((M, ly, M + lw + 64, ly + 90), radius=45, fill=color)
-        d.text((M + 32, ly + 45), label, font=lf, fill=t.accent_ink if color == t.accent else (255, 255, 255),
-               anchor="lm")
-    else:  # tab: 왼쪽 굵은 막대 + 색 글자
-        d.rectangle((M, ly + 8, M + 12, ly + 82), fill=color)
-        d.text((M + 36, ly + 45), label, font=lf, fill=color, anchor="lm")
-
-    # ④ 큰 자막 (왼쪽 정렬, 최대 3줄)
-    size = 112
-    while True:
-        cf = _font(FONT_B, size)
-        lines = _wrap(d, caption, cf, W - 2 * M)
-        if len(lines) <= 3 or size <= 76:
-            break
-        size -= 6
-    line_h = int(size * 1.32)
-    y = 1200
-    for line in lines:
-        if t.mark:
-            tw = d.textlength(line, font=cf)
-            d.rectangle((M - 6, y + size * 0.55, M + tw + 6, y + size * 1.02), fill=t.mark)
-        d.text((M, y), line, font=cf, fill=t.ink, stroke_width=2, stroke_fill=t.ink)
-        y += line_h
-    return img
+        bg = ImageOps.fit(img, (cw, ch), Image.LANCZOS)
+        bg = ImageEnhance.Brightness(bg.filter(ImageFilter.GaussianBlur(40))).enhance(0.6)
+    fg = ImageOps.contain(img, (cw, int(ch * 0.8)), Image.LANCZOS)
+    bg.paste(fg, ((cw - fg.width) // 2, max(0, (ch - fg.height) // 2 - 140)))
+    return bg
 
 
-def _ffmpeg(args: list[str]) -> None:
-    subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", *args], check=True)
+def caption_layer(text: str, t: Theme) -> Image.Image:
+    layer = Image.new("RGBA", (W, 300), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    size = 92
+    while size > 60 and d.textlength(text, font=_font(FONT_B, size)) > W - 140:
+        size -= 4
+    f = _font(FONT_B, size)
+    tw = d.textlength(text, font=f)
+    pad_x, pad_y = 40, 28
+    box = (W / 2 - tw / 2 - pad_x, 150 - size / 2 - pad_y, W / 2 + tw / 2 + pad_x, 150 + size / 2 + pad_y)
+    d.rounded_rectangle(box, radius=28, fill=t.cap_box)
+    d.text((W // 2, 150), text, font=f, fill=t.cap_ink, anchor="mm", stroke_width=2, stroke_fill=t.cap_ink)
+    return layer
 
 
-def render(script: ShortScript, product: Product, out_dir: Path, require_approval: bool = True) -> Path:
+def kenburns(canvas: Image.Image, k: int, p: float) -> Image.Image:
+    """컷 번호 k, 컷 안 진행도 p(0~1). 짝수 컷은 확대, 홀수 컷은 축소 + 좌우 패닝."""
+    e = p * p * (3 - 2 * p)  # ease in-out
+    z = 1 + (ZOOM - 1) * (e if k % 2 == 0 else 1 - e)
+    cw, ch = canvas.size
+    vw, vh = cw / z, ch / z
+    pan = (e - 0.5) * (cw - vw) * (1 if k % 4 < 2 else -1)
+    x0 = (cw - vw) / 2 + pan
+    y0 = (ch - vh) / 2
+    return canvas.resize((cw, ch), Image.BILINEAR, box=(x0, y0, x0 + vw, y0 + vh))
+
+
+# ---------- 타임라인 ----------
+
+def _caption_times(captions: list[str], start: float, dur: float) -> list[tuple[float, float, str]]:
+    weights = [max(1, len(c.replace(" ", ""))) for c in captions] or [1]
+    total = sum(weights)
+    out, t = [], start
+    for c, w in zip(captions or [""], weights):
+        d = dur * w / total
+        out.append((t, t + d, c))
+        t += d
+    return out
+
+
+def _ffmpeg(args: list[str], **kw) -> subprocess.CompletedProcess | subprocess.Popen:
+    return subprocess.run(["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", *args], check=True, **kw)
+
+
+def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_approval: bool = True) -> Path:
     if require_approval and not script.approved:
         raise PermissionError("script.json의 approved가 false입니다. 검수 후 true로 바꾸거나 --force를 쓰세요.")
+    t = current_theme()
     work = out_dir / "work"
     work.mkdir(parents=True, exist_ok=True)
+    products = item.products if isinstance(item, Bundle) else [item]
 
-    images = [im for im in (_load_image(s) for s in product.images) if im is not None]
+    # 상품별 이미지 캔버스 (미리 한 번만 만든다)
+    canvases: list[list[Image.Image]] = []
+    for p in products:
+        imgs = [im for im in (_load_image(s) for s in p.images) if im is not None]
+        if not imgs:
+            imgs = [Image.new("RGB", (1080, 1080), (230, 233, 238))]
+        canvases.append([image_canvas(im) for im in imgs])
 
-    segments: list[Path] = []
-    total_sec = 0.0
-    crit_no = 0
-    for i, scene in enumerate(script.scenes):
-        if scene.kind == "criteria":
-            crit_no += 1
-        pimg = images[i % len(images)] if images else None
-        frame = draw_frame(scene.kind, scene.caption, i, len(script.scenes), pimg,
-                           script.product_name, crit_no if scene.kind == "criteria" else None)
-        png = work / f"scene{i:02d}.png"
-        frame.save(png)
+    # 음성 + 장면/자막 시간표
+    wavs, scenes_t, caps = [], [], []
+    clock = 0.0
+    for i, sc in enumerate(script.scenes):
+        audio, dur = synthesize(sc.narration, work / f"scene{i:02d}.mp3")
+        wav = work / f"scene{i:02d}.wav"
+        src = ["-i", str(audio)] if audio else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
+        _ffmpeg([*src, "-af", f"apad=whole_dur={dur:.3f}", "-t", f"{dur:.3f}", "-ar", "44100", "-ac", "2", str(wav)])
+        wavs.append(wav)
+        scenes_t.append((clock, clock + dur, min(sc.product_index, len(products) - 1)))
+        caps += _caption_times(sc.captions or [sc.narration], clock, dur)
+        clock += dur
+    total = clock
+    if total > MAX_TOTAL_SEC:
+        print(f"[render] 경고: 총 {total:.1f}초로 쇼츠 길이를 넘습니다. 대본을 줄여 주세요.")
 
-        audio, dur = synthesize(scene.narration, work / f"scene{i:02d}.mp3")
-        total_sec += dur
-        seg = work / f"scene{i:02d}.mp4"
-        audio_in = ["-i", str(audio)] if audio else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
-        _ffmpeg([
-            "-loop", "1", "-framerate", "30", "-i", str(png), *audio_in,
-            "-t", f"{dur:.2f}",
-            "-vf", "fade=t=in:st=0:d=0.2,format=yuv420p",
-            "-af", "apad", "-c:v", "libx264", "-preset", "medium", "-crf", "20",
-            "-c:a", "aac", "-ar", "44100", "-ac", "2", "-shortest", str(seg),
-        ])
-        segments.append(seg)
+    concat = work / "audio.txt"
+    concat.write_text("".join(f"file '{w.name}'\n" for w in wavs), encoding="utf-8")
+    audio_all = work / "audio.wav"
+    _ffmpeg(["-f", "concat", "-safe", "0", "-i", str(concat), "-c", "copy", str(audio_all)])
 
-    if total_sec > MAX_TOTAL_SEC:
-        print(f"[render] 경고: 총 {total_sec:.1f}초로 쇼츠 권장 길이를 넘습니다. 대본을 줄여 주세요.")
+    band = draw_band(script.top_title, t)
+    cap_cache: dict[str, Image.Image] = {}
 
-    concat = work / "concat.txt"
-    concat.write_text("".join(f"file '{s.name}'\n" for s in segments), encoding="utf-8")
     final = out_dir / "video.mp4"
-    _ffmpeg(["-f", "concat", "-safe", "0", "-i", str(concat), "-c", "copy",
-             "-movflags", "+faststart", str(final)])
-    print(f"[render] {final} ({total_sec:.1f}초)")
+    proc = subprocess.Popen(
+        ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
+         "-i", str(audio_all), "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", str(final)],
+        stdin=subprocess.PIPE,
+    )
+    n_frames = int(total * FPS) + 1
+    si = ci = 0
+    for f in range(n_frames):
+        now = f / FPS
+        while si < len(scenes_t) - 1 and now >= scenes_t[si][1]:
+            si += 1
+        while ci < len(caps) - 1 and now >= caps[ci][1]:
+            ci += 1
+        pidx = scenes_t[si][2]
+        k = int(now // CUT_SEC)
+        p = (now % CUT_SEC) / CUT_SEC
+        imgs = canvases[pidx]
+        frame = Image.new("RGB", (W, H))
+        frame.paste(kenburns(imgs[k % len(imgs)], k, p), (0, BAND_H))
+        frame.paste(band, (0, 0))
+        text = caps[ci][2]
+        if text:
+            if text not in cap_cache:
+                cap_cache[text] = caption_layer(text, t)
+            frame.paste(cap_cache[text], (0, CAPTION_Y - 150), cap_cache[text])
+        proc.stdin.write(frame.tobytes())
+    proc.stdin.close()
+    if proc.wait() != 0:
+        raise RuntimeError("ffmpeg 인코딩 실패")
+    print(f"[render] {final} ({total:.1f}초)")
     return final
+
+
+def preview_frame(script: ShortScript, item: Product | Bundle, at_sec: float = 2.0) -> Image.Image:
+    """디자인 확인용 정지 화면 한 장 (음성 없이 글자 수로 시간 계산)."""
+    t = current_theme()
+    products = item.products if isinstance(item, Bundle) else [item]
+    imgs = [im for im in (_load_image(s) for s in products[0].images) if im is not None] or \
+        [Image.new("RGB", (1080, 1080), (230, 233, 238))]
+    k = int(at_sec // CUT_SEC)
+    frame = Image.new("RGB", (W, H))
+    frame.paste(kenburns(image_canvas(imgs[k % len(imgs)]), k, (at_sec % CUT_SEC) / CUT_SEC), (0, BAND_H))
+    frame.paste(draw_band(script.top_title, t), (0, 0))
+    cap = script.scenes[0].captions[0] if script.scenes and script.scenes[0].captions else ""
+    if cap:
+        layer = caption_layer(cap, t)
+        frame.paste(layer, (0, CAPTION_Y - 150), layer)
+    return frame

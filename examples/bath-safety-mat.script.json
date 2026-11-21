@@ -1,17 +1,18 @@
 {
   "product_name": "욕실 미끄럼방지 매트",
-  "title": "부모님 댁 욕실 매트, 이것 모르고 사면 후회해요",
-  "description": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.\n욕실 미끄럼방지 매트 고르는 기준과 구매자들이 말한 장점·불만을 정리했어요.",
-  "hashtags": ["효도템", "욕실안전", "미끄럼방지매트", "부모님선물"],
+  "top_title": "욕실 미끄럼 걱정\n이거 하나면 끝",
+  "title": "욕실에서 미끄러질까 겁나시죠? 이거 하나 까세요",
+  "description": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.\n\n3. 욕실 미끄럼방지 매트",
+  "pinned_comment": "3. 욕실 미끄럼방지 매트\n채널 프로필 링크에서 번호로 찾으세요.",
+  "hashtags": ["살림템", "욕실안전", "미끄럼방지매트", "생활꿀템"],
   "scenes": [
-    {"kind": "hook", "caption": "부모님 댁 욕실\n바닥, 괜찮으세요?", "narration": "부모님 댁 욕실 바닥, 한 번 확인해 보셨나요? 매트 고를 때 꼭 볼 것 세 가지 알려드릴게요."},
-    {"kind": "criteria", "caption": "바닥에 꽉 붙는\n흡착판", "narration": "첫째, 뒷면 흡착판이 촘촘한지 보세요. 밟아도 밀리지 않아야 합니다."},
-    {"kind": "criteria", "caption": "물 빠지는\n구멍", "narration": "둘째, 물 빠지는 구멍이 있는지 보세요. 물이 고이면 오히려 미끄럽습니다."},
-    {"kind": "criteria", "caption": "곰팡이 방지\n소재", "narration": "셋째, 곰팡이가 덜 생기는 소재인지, 떼어서 씻기 쉬운지 확인하세요."},
-    {"kind": "pros", "caption": "덜 미끄러워\n마음이 놓여요", "narration": "구매하신 분들은 발을 디딜 때 덜 미끄러워서 마음이 놓인다고 많이 말합니다."},
-    {"kind": "cons", "caption": "청소를 안 하면\n물때가 껴요", "narration": "불만도 있습니다. 자주 떼어서 씻지 않으면 뒷면에 물때가 낀다는 이야기가 많아요."},
-    {"kind": "avoid", "caption": "타일이 거칠면\n잘 안 붙어요", "narration": "바닥 타일이 오돌토돌하거나 거친 집은 흡착이 잘 안 될 수 있으니 피하세요."},
-    {"kind": "cta", "caption": "상품 정보는\n프로필 링크에", "narration": "상품 정보는 채널 프로필 링크에 모아 두었어요. 이 영상은 광고를 포함합니다."}
+    {"kind": "hook", "product_index": 0, "narration": "욕실 들어갈 때 미끄러질까 겁나시죠?", "captions": ["욕실 들어갈 때", "미끄러질까 겁나시죠?"]},
+    {"kind": "problem", "product_index": 0, "narration": "물기 있는 타일은 한 번 미끄러지면 크게 다치기 쉬워요.", "captions": ["물기 있는 타일은", "한 번 미끄러지면", "크게 다치기 쉬워요"]},
+    {"kind": "solution", "product_index": 0, "narration": "이 매트는 뒷면 흡착판이 바닥을 꽉 잡아줘서 밟아도 안 밀려요.", "captions": ["뒷면 흡착판이", "바닥을 꽉 잡아줘서", "밟아도 안 밀려요"]},
+    {"kind": "solution", "product_index": 0, "narration": "구멍으로 물이 쏙 빠져서 금방 말라요.", "captions": ["구멍으로 물이 쏙", "금방 말라요"]},
+    {"kind": "review", "product_index": 0, "narration": "구매하신 분들은 발 디딜 때 마음이 놓인다고 해요.", "captions": ["구매하신 분들은", "마음이 놓인다고 해요"]},
+    {"kind": "downside", "product_index": 0, "narration": "다만 가끔 떼어서 씻어줘야 물때가 안 껴요.", "captions": ["다만 가끔 떼서", "씻어줘야 해요"]},
+    {"kind": "cta", "product_index": 0, "narration": "프로필 링크 3번에 있어요.", "captions": ["프로필 링크 3번"]}
   ],
   "source_notes": ["샘플 대본: 실제 리뷰 조사 없이 형식 확인용으로 작성됨"],
   "approved": true
