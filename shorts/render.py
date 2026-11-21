@@ -2,33 +2,68 @@
 from __future__ import annotations
 
 import io
+import os
 import subprocess
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 from .models import Product, ShortScript
 from .tts import synthesize
 
 ROOT = Path(__file__).resolve().parent.parent
-FONT_B = str(ROOT / "assets" / "fonts" / "NanumSquareRoundB.ttf")
-FONT_R = str(ROOT / "assets" / "fonts" / "NanumSquareRoundR.ttf")
+FONTS = ROOT / "assets" / "fonts"
+FONT_B = str(FONTS / "NanumSquareB.ttf")
+FONT_R = str(FONTS / "NanumSquareR.ttf")
 
 W, H = 1080, 1920
-BG = (255, 248, 238)
-INK = (25, 25, 25)
-HIGHLIGHT = (255, 221, 87)
-KIND_STYLE = {
-    "hook": ("잠깐!", (214, 40, 40)),
-    "criteria": ("고르는 기준", (29, 78, 137)),
-    "pros": ("구매자들이 꼽은 장점", (42, 140, 120)),
-    "cons": ("구매자들이 꼽은 불만", (220, 100, 60)),
-    "avoid": ("이런 분은 피하세요", (110, 50, 170)),
-    "cta": ("상품 정보", (214, 40, 40)),
-}
+CHANNEL_NAME = os.getenv("CHANNEL_NAME", "어르신 살림 가이드")
 DISCLOSURE = "광고 · 쿠팡 파트너스 활동으로 수수료를 받을 수 있어요"
 MAX_TOTAL_SEC = 59.0
+
+LABELS = {
+    "hook": "잠깐 확인하세요",
+    "criteria": "고르는 기준",
+    "pros": "구매자들이 꼽은 장점",
+    "cons": "구매자들이 꼽은 불만",
+    "avoid": "이런 분은 피하세요",
+    "cta": "상품 정보",
+}
+
+
+@dataclass(frozen=True)
+class Theme:
+    bg: tuple
+    ink: tuple            # 큰 자막 색
+    sub: tuple            # 채널명·고지 색
+    accent: tuple         # 라벨·강조 색
+    accent_ink: tuple     # 라벨 글자색
+    card: tuple           # 상품 사진 카드 배경 (상품 사진은 대부분 흰 배경)
+    cons_accent: tuple    # 불만·피하세요 라벨 색
+    mark: tuple | None    # 자막 형광펜 색 (None이면 없음)
+    label_style: str      # "pill" | "tab"
+
+
+THEMES = {
+    # A. 네이비 홈쇼핑: 진한 남색 배경 + 흰 자막 + 노란 강조. 방송 느낌, 대비 최고
+    "navy": Theme(bg=(13, 33, 61), ink=(255, 255, 255), sub=(160, 178, 204), accent=(255, 205, 41),
+                  accent_ink=(13, 33, 61), card=(255, 255, 255), cons_accent=(255, 107, 87),
+                  mark=None, label_style="pill"),
+    # B. 클린 화이트: 흰 배경 + 검정 자막 + 초록 포인트. 정보 채널·신뢰감
+    "clean": Theme(bg=(255, 255, 255), ink=(17, 24, 39), sub=(120, 128, 140), accent=(4, 120, 87),
+                   accent_ink=(255, 255, 255), card=(255, 255, 255), cons_accent=(194, 65, 12),
+                   mark=None, label_style="tab"),
+    # C. 따뜻한 크림: 크림 배경 + 진갈색 자막 + 주황 형광펜. 생활·살림 느낌
+    "warm": Theme(bg=(250, 244, 235), ink=(43, 33, 24), sub=(150, 130, 110), accent=(217, 72, 15),
+                  accent_ink=(255, 255, 255), card=(255, 255, 255), cons_accent=(140, 60, 160),
+                  mark=(255, 214, 165), label_style="pill"),
+}
+
+
+def current_theme() -> Theme:
+    return THEMES[os.getenv("VIDEO_THEME", "clean")]
 
 
 def _font(path: str, size: int) -> ImageFont.FreeTypeFont:
@@ -65,51 +100,69 @@ def _wrap(draw: ImageDraw.ImageDraw, text: str, font, max_w: int) -> list[str]:
     return lines
 
 
+def _rounded_paste(base: Image.Image, im: Image.Image, xy: tuple[int, int], radius: int) -> None:
+    mask = Image.new("L", im.size, 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, im.width, im.height), radius=radius, fill=255)
+    base.paste(im, xy, mask)
+
+
 def draw_frame(scene_kind: str, caption: str, idx: int, total: int,
-               product_img: Image.Image | None, product_name: str, criteria_no: int | None) -> Image.Image:
-    img = Image.new("RGB", (W, H), BG)
+               product_img: Image.Image | None, product_name: str, criteria_no: int | None,
+               theme: Theme | None = None) -> Image.Image:
+    t = theme or current_theme()
+    img = Image.new("RGB", (W, H), t.bg)
     d = ImageDraw.Draw(img)
+    M = 72  # 좌우 여백
 
-    # 광고 고지 (상단, 쇼츠 UI에 가리지 않는 위치)
-    d.text((W // 2, 170), DISCLOSURE, font=_font(FONT_R, 34), fill=(120, 110, 100), anchor="mm")
+    # ① 상단: 채널명 + 광고 고지 (쇼츠 상단 UI 아래)
+    d.text((M, 150), CHANNEL_NAME, font=_font(FONT_B, 40), fill=t.sub)
+    d.text((M, 205), DISCLOSURE, font=_font(FONT_R, 30), fill=t.sub)
 
-    # 장면 라벨
-    label, color = KIND_STYLE[scene_kind]
-    if criteria_no:
-        label = f"{label} {criteria_no}"
-    lf = _font(FONT_B, 54)
-    lw = d.textlength(label, font=lf)
-    d.rounded_rectangle((W / 2 - lw / 2 - 36, 230, W / 2 + lw / 2 + 36, 320), radius=45, fill=color)
-    d.text((W // 2, 275), label, font=lf, fill="white", anchor="mm")
-
-    # 상품 이미지 카드
-    card = (90, 370, W - 90, 1010)
-    d.rounded_rectangle(card, radius=36, fill="white", outline=(230, 222, 210), width=4)
+    # ② 상품 사진 카드 (그림자 + 둥근 모서리)
+    cx0, cy0, cx1, cy1 = M, 280, W - M, 1000
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle((cx0, cy0 + 14, cx1, cy1 + 14), radius=40, fill=(0, 0, 0, 60))
+    img.paste(shadow.filter(ImageFilter.GaussianBlur(18)), (0, 0), shadow.filter(ImageFilter.GaussianBlur(18)))
+    border = (226, 230, 236) if t.bg == t.card else None
+    d.rounded_rectangle((cx0, cy0, cx1, cy1), radius=40, fill=t.card, outline=border, width=3)
     if product_img is not None:
-        fitted = ImageOps.contain(product_img, (card[2] - card[0] - 60, card[3] - card[1] - 60))
-        x = card[0] + (card[2] - card[0] - fitted.width) // 2
-        y = card[1] + (card[3] - card[1] - fitted.height) // 2
-        img.paste(fitted, (x, y))
+        fitted = ImageOps.contain(product_img, (cx1 - cx0 - 80, cy1 - cy0 - 80))
+        _rounded_paste(img, fitted, (cx0 + (cx1 - cx0 - fitted.width) // 2,
+                                     cy0 + (cy1 - cy0 - fitted.height) // 2), 24)
     else:
-        d.text(((card[0] + card[2]) // 2, (card[1] + card[3]) // 2), product_name,
-               font=_font(FONT_B, 56), fill=(150, 140, 130), anchor="mm")
+        d.text(((cx0 + cx1) // 2, (cy0 + cy1) // 2), product_name,
+               font=_font(FONT_B, 56), fill=t.sub, anchor="mm")
 
-    # 큰 자막 (최대 2~3줄, 노란 형광펜 배경)
-    size = 104
+    # ③ 장면 라벨
+    label = LABELS[scene_kind] + (f" {criteria_no}" if criteria_no else "")
+    color = t.cons_accent if scene_kind in ("cons", "avoid") else t.accent
+    lf = _font(FONT_B, 54)
+    ly = 1070
+    if t.label_style == "pill":
+        lw = d.textlength(label, font=lf)
+        d.rounded_rectangle((M, ly, M + lw + 64, ly + 90), radius=45, fill=color)
+        d.text((M + 32, ly + 45), label, font=lf, fill=t.accent_ink if color == t.accent else (255, 255, 255),
+               anchor="lm")
+    else:  # tab: 왼쪽 굵은 막대 + 색 글자
+        d.rectangle((M, ly + 8, M + 12, ly + 82), fill=color)
+        d.text((M + 36, ly + 45), label, font=lf, fill=color, anchor="lm")
+
+    # ④ 큰 자막 (왼쪽 정렬, 최대 3줄)
+    size = 112
     while True:
         cf = _font(FONT_B, size)
-        lines = _wrap(d, caption, cf, W - 160)
-        if len(lines) <= 3 or size <= 70:
+        lines = _wrap(d, caption, cf, W - 2 * M)
+        if len(lines) <= 3 or size <= 76:
             break
         size -= 6
-    line_h = int(size * 1.35)
-    y0 = 1250 - (len(lines) * line_h) // 2
-    for i, line in enumerate(lines):
-        cy = y0 + i * line_h + line_h // 2
-        tw = d.textlength(line, font=cf)
-        d.rectangle((W / 2 - tw / 2 - 18, cy - size * 0.55, W / 2 + tw / 2 + 18, cy + size * 0.6), fill=HIGHLIGHT)
-        d.text((W // 2, cy), line, font=cf, fill=INK, anchor="mm")
-
+    line_h = int(size * 1.32)
+    y = 1200
+    for line in lines:
+        if t.mark:
+            tw = d.textlength(line, font=cf)
+            d.rectangle((M - 6, y + size * 0.55, M + tw + 6, y + size * 1.02), fill=t.mark)
+        d.text((M, y), line, font=cf, fill=t.ink, stroke_width=2, stroke_fill=t.ink)
+        y += line_h
     return img
 
 
