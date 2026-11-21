@@ -29,8 +29,12 @@ def _load_dotenv(path: Path = ROOT / ".env") -> None:
                 os.environ.setdefault(key.strip(), value)
     # TTS 키 파일이 없으면 변수를 지워 gcloud 로그인(ADC) 인증을 쓰게 한다
     cred = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-    if cred and not (ROOT / cred).exists() and not Path(cred).exists():
-        os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS")
+    if cred:
+        p = Path(cred) if Path(cred).is_absolute() else ROOT / cred
+        if p.exists():
+            os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(p)  # 어느 폴더에서 실행해도 찾게
+        else:
+            os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS")
 
 
 def _load(product_path: str) -> tuple[Product, Path]:
