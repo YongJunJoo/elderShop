@@ -110,13 +110,6 @@ def draw_frame(scene_kind: str, caption: str, idx: int, total: int,
         d.rectangle((W / 2 - tw / 2 - 18, cy - size * 0.55, W / 2 + tw / 2 + 18, cy + size * 0.6), fill=HIGHLIGHT)
         d.text((W // 2, cy), line, font=cf, fill=INK, anchor="mm")
 
-    # 진행 점
-    gap = 34
-    sx = W / 2 - (total - 1) * gap / 2
-    for i in range(total):
-        r = 11 if i == idx else 8
-        fill = color if i == idx else (205, 196, 185)
-        d.ellipse((sx + i * gap - r, 1500 - r, sx + i * gap + r, 1500 + r), fill=fill)
     return img
 
 
