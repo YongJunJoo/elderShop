@@ -8,11 +8,29 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 from .models import Product, ShortScript
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _load_dotenv(path: Path = ROOT / ".env") -> None:
+    """.env를 읽어 환경변수로 넣는다 (윈도우에는 `source`가 없으므로). 이미 있는 값은 덮지 않는다."""
+    if path.exists():
+        for raw in path.read_text(encoding="utf-8-sig").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            value = value.split(" #", 1)[0].strip().strip('"').strip("'")
+            if value:
+                os.environ.setdefault(key.strip(), value)
+    # TTS 키 파일이 없으면 변수를 지워 gcloud 로그인(ADC) 인증을 쓰게 한다
+    cred = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if cred and not (ROOT / cred).exists() and not Path(cred).exists():
+        os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS")
 
 
 def _load(product_path: str) -> tuple[Product, Path]:
@@ -25,6 +43,7 @@ def _script(out_dir: Path) -> ShortScript:
 
 
 def main() -> None:
+    _load_dotenv()
     ap = argparse.ArgumentParser(prog="shorts")
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name in ("script", "render", "upload"):

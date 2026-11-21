@@ -21,7 +21,7 @@
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt     # ffmpeg도 필요 (brew install ffmpeg / apt install ffmpeg)
-cp .env.example .env                # 키 채우기
+cp .env.example .env                # 키 채우기 (실행 시 자동으로 읽음, 윈도우 포함)
 ```
 
 준비할 것
