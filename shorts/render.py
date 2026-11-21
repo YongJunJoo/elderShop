@@ -63,7 +63,7 @@ THEMES = {
 
 
 def current_theme() -> Theme:
-    return THEMES[os.getenv("VIDEO_THEME", "clean")]
+    return THEMES[os.getenv("VIDEO_THEME", "navy")]
 
 
 def _font(path: str, size: int) -> ImageFont.FreeTypeFont:
