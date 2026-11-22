@@ -40,6 +40,7 @@ cp .env.example .env                # 키 채우기 (실행 시 자동으로 읽
 ## 사용법
 
 ```bash
+python -m shorts images products/bath-safety-mat.json   # 상품 사진 자동 수집 → assets/products/<slug>/
 python -m shorts script products/bath-safety-mat.json   # → out/bath-safety-mat/script.json
 # script.json 검수: 내용 확인 후 "approved": true
 python -m shorts render products/bath-safety-mat.json   # → out/bath-safety-mat/video.mp4

@@ -17,6 +17,7 @@ class Product(BaseModel):
     affiliate_url: Optional[str] = Field(None, description="쿠팡 파트너스 등 제휴 링크")
     images: List[str] = Field(default_factory=list, description="상세페이지 이미지 경로 또는 URL, 4~8장 권장")
     review_notes: str = Field("", description="공개 리뷰에서 모은 장점·불만 메모. 비어 있으면 웹 검색으로 채운다.")
+    image_source: Optional[dict] = Field(None, description="images 단계가 사진을 가져온 출처(검수용)")
 
 
 class Bundle(BaseModel):

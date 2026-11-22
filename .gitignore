@@ -4,3 +4,4 @@ __pycache__/
 secrets/
 out/
 data/*.csv
+assets/products/

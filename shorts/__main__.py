@@ -1,4 +1,5 @@
 """사용법:
+  python -m shorts images  products/bath-safety-mat.json     # 상품 사진 자동 수집 (쿠팡 파트너스 / 네이버 쇼핑 API)
   python -m shorts script  products/bath-safety-mat.json     # 대본 생성 → out/<slug>/script.json
   python -m shorts render  products/bath-safety-mat.json     # 승인된 대본으로 영상 → out/<slug>/video.mp4
   python -m shorts upload  products/bath-safety-mat.json [--publish-at 2026-11-22T19:00:00+09:00]
@@ -52,7 +53,7 @@ def main() -> None:
     _load_dotenv()
     ap = argparse.ArgumentParser(prog="shorts")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("script", "render", "upload"):
+    for name in ("images", "script", "render", "upload"):
         p = sub.add_parser(name)
         p.add_argument("product")
         if name == "render":
@@ -64,7 +65,14 @@ def main() -> None:
     a.add_argument("--days", type=int, default=28)
     args = ap.parse_args()
 
-    if args.cmd == "script":
+    if args.cmd == "images":
+        from .images import fetch_images
+        item, _ = _load(args.product)
+        if isinstance(item, Bundle):
+            raise SystemExit("묶음은 상품별 JSON에서 images를 먼저 실행한 뒤 묶음 파일에 붙여 주세요.")
+        for c in fetch_images(item, Path(args.product)):
+            print(f"  후보: [{c['source']}] {c['name']} ({c['price']}원)")
+    elif args.cmd == "script":
         from .script_gen import generate_script, save_script
         product, out = _load(args.product)
         path = save_script(generate_script(product), out)
