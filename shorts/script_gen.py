@@ -48,7 +48,7 @@ def research_reviews(product: Product, client: anthropic.Anthropic | None = None
 
 
 def generate_script(item: Product | Bundle, client: anthropic.Anthropic | None = None,
-                    fmt: str = "slides") -> ShortScript:
+                    fmt: str = "aiimage") -> ShortScript:
     """단품(Product) 또는 TOP3 묶음(Bundle)으로 대본을 만든다."""
     client = client or _client()
     products = item.products if isinstance(item, Bundle) else [item]

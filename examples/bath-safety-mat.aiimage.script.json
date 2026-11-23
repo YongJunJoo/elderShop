@@ -49,6 +49,9 @@
     "샘플 대본: 실제 리뷰 조사 없이 형식 확인용으로 작성됨"
   ],
   "approved": true,
-  "format": "ai",
-  "ai_prompt": "A Korean grandmother in her late 60s steps carefully into a bright tiled home bathroom and places a light blue suction-cup bath mat on the wet floor, then stands on it steadily and smiles."
+  "format": "aiimage",
+  "ai_image_prompts": [
+    "Wide shot: a Korean grandmother in her late 60s in a bright tiled home bathroom lays a light blue suction-cup bath mat on the wet floor.",
+    "Close shot: her bare feet standing steadily on the light blue suction-cup bath mat on the wet tiles, the mat's texture clearly visible."
+  ]
 }

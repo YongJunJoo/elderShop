@@ -51,8 +51,8 @@ python -m shorts analyze --days 28                      # → data/analytics_*.c
 ### AI 방식 비용 비교 (편당, 대략)
 | 방식 | 명령 | 비용 |
 |---|---|---|
-| 사진 전환형(기본) | script → render | Claude 대본 100~400원 |
-| AI 장면 이미지형 | script --format aiimage → aiimage → render | + 이미지 4장 약 200원 |
+| **AI 장면 이미지형(기본, 9~12초)** | images → script → aiimage → render | Claude 대본 100~400원 + 이미지 2장 약 100원 |
+| 사진 전환형(25~30초) | images → script --format slides → render | Claude 대본 100~400원 |
 | Flow 반자동 | script --format ai → flowprompt → (Flow에서 생성, out/<slug>/flow/에 mp4) → render | 무료 크레딧(하루 50, Veo Fast 8초=20), 720p, 수동 다운로드 |
 | Veo API 자동 | script --format ai → aivideo → render | 8초당 약 1~3달러 |
 

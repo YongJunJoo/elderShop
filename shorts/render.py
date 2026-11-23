@@ -285,10 +285,10 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         if use_clip and now < clip_end:
             last_clip = next(clip_frames, last_clip)
             frame.paste(last_clip, (0, BAND_H))
-        elif use_aiimg and now < clip_end:  # AI 장면 이미지를 2초 남짓마다 바꾸며 줌·패닝
-            ak = int(now // (CUT_SEC * 1.3))
-            frame.paste(kenburns(ai_canvases[ak % len(ai_canvases)], ak, (now % (CUT_SEC * 1.3)) / (CUT_SEC * 1.3)),
-                        (0, BAND_H))
+        elif use_aiimg and now < clip_end:  # AI 장면 이미지들을 AI 구간에 고르게 나눠 줌·패닝
+            seg = max(clip_end / len(ai_canvases), 0.5)
+            ak = min(int(now // seg), len(ai_canvases) - 1)
+            frame.paste(kenburns(ai_canvases[ak], ak, min((now - ak * seg) / seg, 1.0)), (0, BAND_H))
         else:
             frame.paste(kenburns(imgs[k % len(imgs)], k, p), (0, BAND_H))
         frame.paste(band, (0, 0))

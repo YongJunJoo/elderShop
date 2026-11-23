@@ -1,8 +1,8 @@
 """사용법:
   python -m shorts images  products/bath-safety-mat.json     # 상품 사진 자동 수집 (쿠팡 파트너스 / 네이버 쇼핑 API)
-  python -m shorts script  products/bath-safety-mat.json     # 대본 생성 → out/<slug>/script.json
+  python -m shorts script  products/bath-safety-mat.json --format slides  # 25~30초 사진 전환형
   python -m shorts script  products/bath-safety-mat.json --format ai   # AI 장면형 대본
-  python -m shorts script  products/bath-safety-mat.json --format aiimage  # AI 장면 이미지형 대본 (저렴)
+  python -m shorts script  products/bath-safety-mat.json     # 기본: 9~12초 AI 장면 이미지형 대본
   python -m shorts aiimage products/bath-safety-mat.json     # AI 장면 이미지 3~4장 (편당 약 200원)
   python -m shorts flowprompt products/bath-safety-mat.json  # Flow(무료)에 붙여넣을 프롬프트 → 받은 mp4를 out/<slug>/flow/ 에
   python -m shorts aivideo products/bath-safety-mat.json     # 승인된 AI 대본으로 8초 장면 생성 (Veo API, 유료)
@@ -62,8 +62,8 @@ def main() -> None:
         p = sub.add_parser(name)
         p.add_argument("product")
         if name == "script":
-            p.add_argument("--format", default="slides", choices=["slides", "aiimage", "ai"],
-                           help="slides: 사진 전환형(기본), aiimage: AI 장면 이미지(저렴), ai: AI 영상 장면")
+            p.add_argument("--format", default="aiimage", choices=["slides", "aiimage", "ai"],
+                           help="aiimage: 9~12초 AI 장면+말풍선(기본), slides: 25~30초 사진 전환형, ai: AI 영상 장면")
         if name == "render":
             p.add_argument("--force", action="store_true", help="승인 없이 미리보기 렌더")
         if name == "upload":
