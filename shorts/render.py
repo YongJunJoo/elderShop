@@ -241,14 +241,22 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
     audio_all = work / "audio.wav"
     _ffmpeg(["-f", "concat", "-safe", "0", "-i", str(concat), "-c", "copy", str(audio_all)])
 
-    ai_clip = out_dir / "ai_clip.mp4"
-    use_ai = script.format == "ai" and ai_clip.exists()
-    if script.format == "ai" and not use_ai:
-        print("[render] ai_clip.mp4가 없어 사진 전환 화면으로 만듭니다. 먼저 `python -m shorts aivideo` 를 실행하세요.")
+    # AI 소스: Veo API 결과(ai_clip.mp4), Flow 등에서 직접 받은 영상(flow/*.mp4), AI 장면 이미지(ai_images/*)
+    flow = sorted((out_dir / "flow").glob("*.mp4")) if (out_dir / "flow").exists() else []
+    ai_clip = flow[0] if flow else out_dir / "ai_clip.mp4"
+    use_clip = script.format == "ai" and ai_clip.exists()
+    ai_imgs = sorted(p for p in (out_dir / "ai_images").glob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg")) \
+        if (out_dir / "ai_images").exists() else []
+    use_aiimg = script.format == "aiimage" and bool(ai_imgs)
+    if script.format in ("ai", "aiimage") and not (use_clip or use_aiimg):
+        print("[render] AI 장면 파일이 없어 상품 사진 전환 화면으로 만듭니다.")
+    use_ai = use_clip or use_aiimg
+    ai_canvases = [ImageOps.fit(Image.open(p).convert("RGB"), (W, H - BAND_H), Image.LANCZOS) for p in ai_imgs] \
+        if use_aiimg else []
     # AI 장면은 후기·단점·CTA 전까지만, 그 뒤는 실제 상품 사진 (클립이 짧으면 마지막 프레임 유지)
     clip_end = next((st for (st, _, _), sc in zip(scenes_t, script.scenes)
                      if sc.kind in ("review", "downside", "cta")), total) if use_ai else 0.0
-    clip_frames = _clip_reader(ai_clip) if use_ai else None
+    clip_frames = _clip_reader(ai_clip) if use_clip else None
     last_clip = None
     band = draw_band(script.top_title, t, ai=use_ai)
     cap_cache: dict[str, Image.Image] = {}
@@ -274,9 +282,13 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         p = (now % CUT_SEC) / CUT_SEC
         imgs = canvases[pidx]
         frame = Image.new("RGB", (W, H))
-        if use_ai and now < clip_end:
+        if use_clip and now < clip_end:
             last_clip = next(clip_frames, last_clip)
             frame.paste(last_clip, (0, BAND_H))
+        elif use_aiimg and now < clip_end:  # AI 장면 이미지를 2초 남짓마다 바꾸며 줌·패닝
+            ak = int(now // (CUT_SEC * 1.3))
+            frame.paste(kenburns(ai_canvases[ak % len(ai_canvases)], ak, (now % (CUT_SEC * 1.3)) / (CUT_SEC * 1.3)),
+                        (0, BAND_H))
         else:
             frame.paste(kenburns(imgs[k % len(imgs)], k, p), (0, BAND_H))
         frame.paste(band, (0, 0))

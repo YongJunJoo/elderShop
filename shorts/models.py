@@ -41,7 +41,8 @@ class Scene(BaseModel):
 
 
 class ShortScript(BaseModel):
-    format: Literal["slides", "ai"] = Field("slides", description="slides: 상품 사진 전환형, ai: AI 생활 장면형")
+    format: Literal["slides", "aiimage", "ai"] = Field(
+        "slides", description="slides: 상품 사진 전환형, aiimage: AI 장면 이미지+줌, ai: AI 영상 장면형")
     product_name: str
     top_title: str = Field(description="영상 내내 상단에 고정되는 2줄 제목. 줄마다 11자 이내, 줄바꿈은 \\n")
     title: str = Field(description="유튜브 제목, 40자 이내, #shorts 제외")
@@ -49,6 +50,9 @@ class ShortScript(BaseModel):
     pinned_comment: str = Field(description="고정 댓글용 문구: 번호별 상품명과 '프로필 링크에서 번호로 찾으세요'")
     hashtags: List[str]
     scenes: List[Scene]
+    ai_image_prompts: Optional[List[str]] = Field(
+        None, description="aiimage 형식일 때만: AI 장면 이미지 3~4장의 영어 설명 (hook·problem·solution 순서)"
+    )
     ai_prompt: Optional[str] = Field(
         None, description="ai 형식일 때만: AI 영상 모델에 줄 영어 장면 설명 (8초, 한 장면, 어르신이 상품을 쓰는 일상)"
     )

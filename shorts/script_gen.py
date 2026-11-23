@@ -65,8 +65,8 @@ def generate_script(item: Product | Bundle, client: anthropic.Anthropic | None =
             f"{p.model_dump_json(indent=2, exclude={'review_notes', 'images'})}\n\n리뷰 조사 메모:\n{notes}"
         )
     kind = f"묶음(TOP{len(products)}) 영상, 주제: {item.theme}" if isinstance(item, Bundle) else "단품 영상"
-    if fmt == "ai":
-        kind += ", AI 장면 형식(format=\"ai\")"
+    if fmt in ("ai", "aiimage"):
+        kind += f", 형식 format=\"{fmt}\""
     user = f"아래 상품으로 {kind} 대본을 써 주세요.\n\n" + "\n\n".join(parts)
 
     resp = client.messages.parse(
@@ -81,7 +81,7 @@ def generate_script(item: Product | Bundle, client: anthropic.Anthropic | None =
         raise RuntimeError("대본 생성 요청이 거절되었습니다.")
     script = resp.parsed_output
     script.approved = False
-    script.format = "ai" if fmt == "ai" else "slides"
+    script.format = fmt if fmt in ("ai", "aiimage") else "slides"
     return script
 
 

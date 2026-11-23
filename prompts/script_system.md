@@ -33,6 +33,12 @@ hook → 상품마다 [problem+solution 1장면 + 후기·단점 1장면] (produ
 - source_notes: 후기·단점의 근거를 출처와 함께 짧게 적습니다.
 - approved는 항상 false.
 
+## AI 장면 이미지 형식 (format = "aiimage"일 때만)
+- 구조와 길이는 기본(단품) 형식과 같습니다. 단, captions는 말풍선으로 뜨므로 상황 설명 문장으로 씁니다(후기처럼 쓰지 않기).
+- ai_image_prompts: 영어로 3~4개. hook·problem·solution 장면 순서대로, 한국 가정에서 60~70대 어르신이 이 상품을 쓰거나
+  그 불편을 겪는 한 순간을 사진처럼 묘사. 상품 색·모양은 참고 사진 그대로. 넘어지는·다치는 장면, 병원, 글자 금지.
+- review·downside·cta 장면에서는 실제 상품 사진이 나옵니다.
+
 ## AI 장면 형식 (format = "ai"일 때만)
 - 총 10~14초. 앞 8초는 AI가 만든 생활 장면, 뒤 3~5초는 실제 상품 사진과 프로필 링크.
 - scenes: hook → solution 1개 → downside → cta (product_index는 0). 앞 세 장면의 내레이션 합계는 8초 분량(약 50~60자).

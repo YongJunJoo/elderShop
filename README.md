@@ -48,6 +48,14 @@ python -m shorts upload products/bath-safety-mat.json --publish-at 2026-11-22T19
 python -m shorts analyze --days 28                      # → data/analytics_*.csv, data/learnings.md
 ```
 
+### AI 방식 비용 비교 (편당, 대략)
+| 방식 | 명령 | 비용 |
+|---|---|---|
+| 사진 전환형(기본) | script → render | Claude 대본 100~400원 |
+| AI 장면 이미지형 | script --format aiimage → aiimage → render | + 이미지 4장 약 200원 |
+| Flow 반자동 | script --format ai → flowprompt → (Flow에서 생성, out/<slug>/flow/에 mp4) → render | 무료 크레딧(하루 50, Veo Fast 8초=20), 720p, 수동 다운로드 |
+| Veo API 자동 | script --format ai → aivideo → render | 8초당 약 1~3달러 |
+
 ### AI 생활 장면형 (선택)
 ```bash
 python -m shorts script  products/bath-safety-mat.json --format ai   # 10~14초 대본 + 영어 장면 설명
