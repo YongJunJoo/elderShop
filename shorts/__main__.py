@@ -1,6 +1,8 @@
 """사용법:
   python -m shorts images  products/bath-safety-mat.json     # 상품 사진 자동 수집 (쿠팡 파트너스 / 네이버 쇼핑 API)
   python -m shorts script  products/bath-safety-mat.json     # 대본 생성 → out/<slug>/script.json
+  python -m shorts script  products/bath-safety-mat.json --format ai   # AI 장면형 대본
+  python -m shorts aivideo products/bath-safety-mat.json     # 승인된 AI 대본으로 8초 장면 생성 (Veo, 유료)
   python -m shorts render  products/bath-safety-mat.json     # 승인된 대본으로 영상 → out/<slug>/video.mp4
   python -m shorts upload  products/bath-safety-mat.json [--publish-at 2026-11-22T19:00:00+09:00]
   python -m shorts analyze [--days 28]                        # 성과 수집 + 교훈 갱신
@@ -53,9 +55,12 @@ def main() -> None:
     _load_dotenv()
     ap = argparse.ArgumentParser(prog="shorts")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("images", "script", "render", "upload"):
+    for name in ("images", "script", "aivideo", "render", "upload"):
         p = sub.add_parser(name)
         p.add_argument("product")
+        if name == "script":
+            p.add_argument("--format", default="slides", choices=["slides", "ai"],
+                           help="slides: 사진 전환형(기본), ai: AI 생활 장면형")
         if name == "render":
             p.add_argument("--force", action="store_true", help="승인 없이 미리보기 렌더")
         if name == "upload":
@@ -75,8 +80,13 @@ def main() -> None:
     elif args.cmd == "script":
         from .script_gen import generate_script, save_script
         product, out = _load(args.product)
-        path = save_script(generate_script(product), out)
+        path = save_script(generate_script(product, fmt=args.format), out)
         print(f"[script] {path} 저장. 검수 후 \"approved\": true 로 바꿔 주세요.")
+    elif args.cmd == "aivideo":
+        from .ai_video import generate_clip
+        item, out = _load(args.product)
+        product = item.products[0] if isinstance(item, Bundle) else item
+        generate_clip(_script(out), product, out)
     elif args.cmd == "render":
         from .render import render
         product, out = _load(args.product)

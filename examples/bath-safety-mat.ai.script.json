@@ -1,0 +1,54 @@
+{
+  "product_name": "욕실 미끄럼방지 매트",
+  "top_title": "욕실 바닥 미끄러울 땐\n이거 하나 까세요",
+  "title": "욕실에서 미끄러질까 겁나시죠? 이거 하나 까세요",
+  "description": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.\n\n3. 욕실 미끄럼방지 매트",
+  "pinned_comment": "3. 욕실 미끄럼방지 매트\n채널 프로필 링크에서 번호로 찾으세요.",
+  "hashtags": [
+    "살림템",
+    "욕실안전",
+    "미끄럼방지매트",
+    "생활꿀템"
+  ],
+  "scenes": [
+    {
+      "kind": "hook",
+      "product_index": 0,
+      "narration": "욕실 바닥 미끄러우시죠?",
+      "captions": [
+        "욕실 바닥 미끄러우시죠?"
+      ]
+    },
+    {
+      "kind": "solution",
+      "product_index": 0,
+      "narration": "흡착 매트 하나 깔아두면 밟아도 안 밀려요.",
+      "captions": [
+        "흡착 매트 하나 깔면",
+        "밟아도 안 밀려요"
+      ]
+    },
+    {
+      "kind": "downside",
+      "product_index": 0,
+      "narration": "다만 가끔 떼서 씻어 주세요.",
+      "captions": [
+        "가끔 떼서 씻어 주세요"
+      ]
+    },
+    {
+      "kind": "cta",
+      "product_index": 0,
+      "narration": "프로필 링크 3번이에요.",
+      "captions": [
+        "프로필 링크 3번"
+      ]
+    }
+  ],
+  "source_notes": [
+    "샘플 대본: 실제 리뷰 조사 없이 형식 확인용으로 작성됨"
+  ],
+  "approved": true,
+  "format": "ai",
+  "ai_prompt": "A Korean grandmother in her late 60s steps carefully into a bright tiled home bathroom and places a light blue suction-cup bath mat on the wet floor, then stands on it steadily and smiles."
+}

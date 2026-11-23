@@ -48,6 +48,16 @@ python -m shorts upload products/bath-safety-mat.json --publish-at 2026-11-22T19
 python -m shorts analyze --days 28                      # → data/analytics_*.csv, data/learnings.md
 ```
 
+### AI 생활 장면형 (선택)
+```bash
+python -m shorts script  products/bath-safety-mat.json --format ai   # 10~14초 대본 + 영어 장면 설명
+# 검수 후 approved=true
+python -m shorts aivideo products/bath-safety-mat.json   # Veo로 8초 장면 (8초당 약 1~3달러)
+python -m shorts render  products/bath-safety-mat.json   # AI 장면 + 말풍선 → 실제 상품 사진 + 프로필 링크
+```
+상품 사진을 참고 이미지로 넣어 모양을 맞추고, 화면 상단에 "AI로 만든 장면"을 표시하며, 업로드 시 YouTube 합성 콘텐츠 표시를 켭니다.
+말풍선은 상황 설명만 쓰고 "써봤더니" 같은 후기처럼 쓰지 않습니다.
+
 음성 없이 화면만 미리 보려면 `TTS_PROVIDER=none python -m shorts render ... --force`.
 대본 예시는 `examples/bath-safety-mat.script.json`.
 
