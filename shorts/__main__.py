@@ -1,4 +1,5 @@
 """사용법:
+  python -m shorts ideas [--n 10] [--theme "겨울"]            # 상품 선정 + 상품별 아이디어 → data/ideas_날짜.md
   python -m shorts images  products/bath-safety-mat.json     # 상품 사진 자동 수집 (쿠팡 파트너스 / 네이버 쇼핑 API)
   python -m shorts script  products/bath-safety-mat.json --format slides  # 25~30초 사진 전환형
   python -m shorts script  products/bath-safety-mat.json --format ai   # AI 장면형 대본
@@ -62,17 +63,24 @@ def main() -> None:
         p = sub.add_parser(name)
         p.add_argument("product")
         if name == "script":
-            p.add_argument("--format", default=None, choices=["slides", "aiimage", "ai"],
+            p.add_argument("--format", default=None, choices=["slides", "aiimage", "ai", "list"],
                            help="생략하면 FORMAT_MIX 비율대로 자동 선택. aiimage: 9~12초 AI 이미지, ai: AI 영상, slides: 25~30초")
         if name == "render":
             p.add_argument("--force", action="store_true", help="승인 없이 미리보기 렌더")
         if name == "upload":
             p.add_argument("--privacy", default="private", choices=["private", "unlisted", "public"])
             p.add_argument("--publish-at")
+    i = sub.add_parser("ideas")
+    i.add_argument("--n", type=int, default=10)
+    i.add_argument("--theme", default="")
     a = sub.add_parser("analyze")
     a.add_argument("--days", type=int, default=28)
     args = ap.parse_args()
 
+    if args.cmd == "ideas":
+        from .ideas import generate_ideas, save_ideas
+        save_ideas(generate_ideas(args.n, args.theme))
+        return
     if args.cmd == "images":
         from .images import fetch_images
         item, _ = _load(args.product)
@@ -84,7 +92,12 @@ def main() -> None:
         from .script_gen import generate_script, save_script
         product, out = _load(args.product)
         from .mix import pick_format
-        fmt = args.format or pick_format()
+        idea_fmt = (product.idea or {}).get("format") if isinstance(product, Product) else None
+        if isinstance(product, Bundle) and not args.format:
+            idea_fmt = "list" if len(product.products) >= 5 else None
+        if isinstance(product, Product) and product.status == "candidate":
+            print("[script] 주의: 아직 검토 전(candidate) 상품입니다. 괜찮으면 JSON의 status를 approved로 바꿔 주세요.")
+        fmt = args.format or idea_fmt or pick_format()
         print(f"[script] 형식: {fmt}")
         path = save_script(generate_script(product, fmt=fmt), out)
         print(f"[script] {path} 저장. 검수 후 \"approved\": true 로 바꿔 주세요.")

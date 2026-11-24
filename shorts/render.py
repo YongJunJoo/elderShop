@@ -150,12 +150,39 @@ def bubble_layer(text: str, t: Theme) -> Image.Image:
     return layer
 
 
+def list_layer(items: list[str], t: Theme) -> Image.Image:
+    """리스트형: 번호 목록 패널 (번호는 노랑, 글자는 흰색)."""
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    n = max(len(items), 1)
+    size = 60 if n <= 8 else 54
+    line_h = int(size * 1.32)
+    top = 1560 - n * line_h - 50
+    d.rounded_rectangle((50, top, W - 50, 1580), radius=36, fill=(*t.band, 225))
+    f = _font(FONT_B, size)
+    y = top + 30
+    for it in items:
+        no, _, text = it.partition(".")
+        if not text:
+            no, text = "", it
+        x = 100
+        if no:
+            d.text((x, y), f"{no.strip()}.", font=f, fill=t.title2, stroke_width=1, stroke_fill=t.title2)
+            x += int(d.textlength("00.", font=f)) + 14
+        d.text((x, y), text.strip(), font=f, fill=(255, 255, 255), stroke_width=1, stroke_fill=(255, 255, 255))
+        y += line_h
+    return layer
+
+
 def _clip_reader(path: Path):
-    """AI 클립을 띠 아래 영역 크기(1080x1490)로 꽉 채워 한 프레임씩 읽는다."""
+    """AI 클립을 띠 아래 영역(1080x1490)에 '잘리지 않게' 넣어 한 프레임씩 읽는다.
+    Flow 워터마크 등 화면 가장자리가 잘리거나 가려지지 않도록 전체를 담고, 남는 양옆은 흐린 확대본으로 채운다."""
     ch = H - BAND_H
+    vf = (f"split[a][b];[a]scale={W}:{ch}:force_original_aspect_ratio=increase,crop={W}:{ch},"
+          f"boxblur=30:2,eq=brightness=-0.12[bg];[b]scale={W}:{ch}:force_original_aspect_ratio=decrease[fg];"
+          f"[bg][fg]overlay=(W-w)/2:(H-h)/2,fps={FPS}")
     proc = subprocess.Popen(
-        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path), "-vf",
-         f"scale={W}:{ch}:force_original_aspect_ratio=increase,crop={W}:{ch},fps={FPS}",
+        ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(path), "-filter_complex", vf,
          "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     size = W * ch * 3
     try:
@@ -252,8 +279,10 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
     use_clip = script.format == "ai" and ai_clip.exists()
     ai_imgs = sorted(p for p in (out_dir / "ai_images").glob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg")) \
         if (out_dir / "ai_images").exists() else []
-    use_aiimg = script.format == "aiimage" and bool(ai_imgs)
-    if script.format in ("ai", "aiimage") and not (use_clip or use_aiimg):
+    use_aiimg = script.format in ("aiimage", "list") and bool(ai_imgs)
+    is_list = script.format == "list" and bool(script.list_items)
+    list_overlay = list_layer(script.list_items, t) if is_list else None
+    if script.format in ("ai", "aiimage", "list") and not (use_clip or use_aiimg):
         print("[render] AI 장면 파일이 없어 상품 사진 전환 화면으로 만듭니다.")
     use_ai = use_clip or use_aiimg
     ai_canvases = [ImageOps.fit(Image.open(p).convert("RGB"), (W, H - BAND_H), Image.LANCZOS) for p in ai_imgs] \
@@ -290,7 +319,10 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         p = (now % CUT_SEC) / CUT_SEC
         imgs = canvases[pidx]
         frame = Image.new("RGB", (W, H))
-        if use_clip and now < clip_end:
+        if is_list:  # 리스트형: 이미지 한 장을 천천히 확대, 목록은 고정
+            bg = ai_canvases[0] if ai_canvases else imgs[0]
+            frame.paste(kenburns(bg, 0, now / max(total, 0.1)), (0, BAND_H))
+        elif use_clip and now < clip_end:
             last_clip = next(clip_frames, last_clip)
             frame.paste(last_clip, (0, BAND_H))
         elif use_aiimg and now < clip_end:  # 1.7초마다 컷: AI 장면 이미지를 차례로, 같은 이미지는 넓게→가깝게
@@ -302,7 +334,9 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         else:
             frame.paste(kenburns(imgs[k % len(imgs)], k, p), (0, BAND_H))
         frame.paste(band, (0, 0))
-        text = caps[ci][2]
+        if list_overlay is not None:
+            frame.paste(list_overlay, (0, 0), list_overlay)
+        text = "" if is_list else caps[ci][2]
         if text:
             if text not in cap_cache:
                 cap_cache[text] = bubble_layer(text, t) if use_ai else caption_layer(text, t)
