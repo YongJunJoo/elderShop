@@ -48,6 +48,11 @@ python -m shorts upload products/bath-safety-mat.json --publish-at 2026-11-22T19
 python -m shorts analyze --days 28                      # → data/analytics_*.csv, data/learnings.md
 ```
 
+### 형식 섞기 (영상형 + 이미지형)
+`script`에서 `--format`을 빼면 `.env`의 `FORMAT_MIX`(기본 `aiimage:2,ai:1`) 비율대로 다음 편의 형식을 자동으로 고릅니다.
+영상형(ai)은 `VIDEO_SOURCE=flow`(기본, 무료)면 `flowprompt`로 프롬프트를 받아 Flow에서 만든 mp4를 `out/<slug>/flow/`에 넣고,
+`VIDEO_SOURCE=veo`면 `aivideo`로 자동 생성합니다(유료). 업로드 기록과 분석 리포트에 형식(aiimage / ai-flow / ai-veo / slides)이 남아 A/B 비교가 됩니다.
+
 ### AI 방식 비용 비교 (편당, 대략)
 | 방식 | 명령 | 비용 |
 |---|---|---|

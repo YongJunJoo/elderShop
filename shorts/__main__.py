@@ -2,7 +2,7 @@
   python -m shorts images  products/bath-safety-mat.json     # 상품 사진 자동 수집 (쿠팡 파트너스 / 네이버 쇼핑 API)
   python -m shorts script  products/bath-safety-mat.json --format slides  # 25~30초 사진 전환형
   python -m shorts script  products/bath-safety-mat.json --format ai   # AI 장면형 대본
-  python -m shorts script  products/bath-safety-mat.json     # 기본: 9~12초 AI 장면 이미지형 대본
+  python -m shorts script  products/bath-safety-mat.json     # 형식은 FORMAT_MIX 비율대로 자동 (기본 이미지형 2 : 영상형 1)
   python -m shorts aiimage products/bath-safety-mat.json     # AI 장면 이미지 3~4장 (편당 약 200원)
   python -m shorts flowprompt products/bath-safety-mat.json  # Flow(무료)에 붙여넣을 프롬프트 → 받은 mp4를 out/<slug>/flow/ 에
   python -m shorts aivideo products/bath-safety-mat.json     # 승인된 AI 대본으로 8초 장면 생성 (Veo API, 유료)
@@ -62,8 +62,8 @@ def main() -> None:
         p = sub.add_parser(name)
         p.add_argument("product")
         if name == "script":
-            p.add_argument("--format", default="aiimage", choices=["slides", "aiimage", "ai"],
-                           help="aiimage: 9~12초 AI 장면+말풍선(기본), slides: 25~30초 사진 전환형, ai: AI 영상 장면")
+            p.add_argument("--format", default=None, choices=["slides", "aiimage", "ai"],
+                           help="생략하면 FORMAT_MIX 비율대로 자동 선택. aiimage: 9~12초 AI 이미지, ai: AI 영상, slides: 25~30초")
         if name == "render":
             p.add_argument("--force", action="store_true", help="승인 없이 미리보기 렌더")
         if name == "upload":
@@ -83,7 +83,10 @@ def main() -> None:
     elif args.cmd == "script":
         from .script_gen import generate_script, save_script
         product, out = _load(args.product)
-        path = save_script(generate_script(product, fmt=args.format), out)
+        from .mix import pick_format
+        fmt = args.format or pick_format()
+        print(f"[script] 형식: {fmt}")
+        path = save_script(generate_script(product, fmt=fmt), out)
         print(f"[script] {path} 저장. 검수 후 \"approved\": true 로 바꿔 주세요.")
     elif args.cmd == "aiimage":
         from .ai_images import generate_images
@@ -103,6 +106,9 @@ def main() -> None:
         print("=== Flow에 붙여넣을 프롬프트 ===\n" + text)
         print("\n참고 이미지(Ingredients/Frames에 올리기): " + ", ".join(str(ROOT / p) for p in product.images[:3]))
         print(f"\n만든 영상(mp4)을 {out / 'flow'} 폴더에 넣고 render 를 실행하세요.")
+    elif args.cmd == "aivideo" and __import__("shorts.mix", fromlist=["x"]).video_source() == "flow":
+        raise SystemExit("VIDEO_SOURCE=flow 입니다. `python -m shorts flowprompt` 로 프롬프트를 받아 Flow에서 만들어 주세요.\n"
+                         "유료 자동 생성을 쓰려면 .env에 VIDEO_SOURCE=veo 를 넣으세요.")
     elif args.cmd == "aivideo":
         from .ai_video import generate_clip
         item, out = _load(args.product)
