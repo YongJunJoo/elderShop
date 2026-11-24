@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 from pathlib import Path
 
 import anthropic
@@ -28,7 +29,7 @@ def generate_ideas(n: int = 10, theme: str = "", client: anthropic.Anthropic | N
     ask = (
         f"어르신 생활용품 쇼츠로 만들 상품 {n}개와 상품별 아이디어를 골라 주세요."
         + (f" 이번 주제: {theme}." if theme else "")
-        + " 쿠팡·네이버 쇼핑의 인기 상품, 리뷰, 최근 쇼츠 사례를 웹에서 찾아 근거를 붙여 주세요."
+        + " 반드시 쿠팡에서 팔고 쿠팡 파트너스 링크를 만들 수 있는 상품만 고르세요. 쿠팡 인기 상품·리뷰, 최근 쇼츠 사례를 웹에서 찾아 근거를 붙여 주세요."
         + f" 이미 다룬 상품은 빼 주세요: {', '.join(_existing()) or '없음'}."
         + (f"\n\n지난 성과에서 배운 점:\n{learn.read_text(encoding='utf-8')}" if learn.exists() else "")
     )
@@ -59,15 +60,28 @@ def save_ideas(batch: IdeaBatch) -> Path:
     taken = {p.stem for p in (ROOT / "products").glob("*.json")}
     next_no = 1 + max([json.loads(p.read_text(encoding="utf-8")).get("link_no") or 0
                        for p in (ROOT / "products").glob("*.json")] or [0])
+    from .images import coupang_search
     for i, idea in enumerate(batch.ideas, 1):
+        try:
+            hits = coupang_search(idea.product_name, 3)
+        except Exception as e:  # 키 오류·한도 초과 등
+            print(f"[ideas] 쿠팡 검색 실패({idea.product_name}): {type(e).__name__}")
+            hits = None
+        if hits:
+            cp = f"쿠팡 파트너스 검색 OK: {hits[0]['name']} ({hits[0]['price']}원)"
+        elif hits == [] and os.getenv("COUPANG_ACCESS_KEY"):
+            cp = "쿠팡 파트너스 검색 결과 없음 → 제외 권장"
+        else:
+            cp = "쿠팡 파트너스 확인 필요 (링크 생성 화면에서 검색)"
         lines += [f"## {i}. {idea.product_name} ({idea.price_range}) · {idea.angle} · {idea.format}",
                   f"- 상단 제목: {idea.top_title.replace(chr(10), ' / ')}",
                   f"- 훅: {idea.hook}", f"- 장면: {idea.scene}", f"- 왜 팔릴까: {idea.why_sells}",
-                  f"- 근거: {idea.evidence}", f"- 주의: {idea.risk_notes}", ""]
+                  f"- 근거: {idea.evidence}", f"- 주의: {idea.risk_notes}", f"- {cp}", ""]
         if idea.slug not in taken:
             prod = {"slug": idea.slug, "name": idea.product_name, "category": idea.category,
                     "link_no": next_no, "images": [], "review_notes": "",
-                    "idea": idea.model_dump(), "status": "candidate"}
+                    "idea": idea.model_dump(), "status": "candidate",
+                    "affiliate_url": (hits[0]["url"] if hits else None)}
             (ROOT / "products" / f"{idea.slug}.json").write_text(json.dumps(prod, ensure_ascii=False, indent=2),
                                                                  encoding="utf-8")
             next_no += 1
