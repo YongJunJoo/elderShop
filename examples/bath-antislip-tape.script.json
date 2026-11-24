@@ -1,0 +1,57 @@
+{
+  "format": "aiimage",
+  "product_name": "욕실 미끄럼방지 테이프",
+  "top_title": "욕실 바닥 미끄러울 땐\n이 테이프 붙이세요",
+  "title": "욕실 바닥 미끄러울 땐 이 테이프 붙이세요",
+  "description": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.\n\n3. 욕실 미끄럼방지 테이프",
+  "pinned_comment": "3. 욕실 미끄럼방지 테이프\n채널 프로필 링크에서 번호로 찾으세요",
+  "hashtags": [
+    "#어르신",
+    "#욕실",
+    "#미끄럼방지",
+    "#생활꿀팁"
+  ],
+  "scenes": [
+    {
+      "kind": "hook",
+      "product_index": 0,
+      "narration": "욕실 바닥 미끄러우시죠?",
+      "captions": [
+        "욕실 바닥 미끄러우시죠?"
+      ]
+    },
+    {
+      "kind": "solution",
+      "product_index": 0,
+      "narration": "이 테이프 몇 줄만 붙이면 발이 덜 미끄러워요.",
+      "captions": [
+        "테이프 몇 줄만 붙이면",
+        "발이 덜 미끄러워요"
+      ]
+    },
+    {
+      "kind": "downside",
+      "product_index": 0,
+      "narration": "다만 바닥을 바짝 말리고 붙이셔야 해요.",
+      "captions": [
+        "바닥 말리고 붙이세요"
+      ]
+    },
+    {
+      "kind": "cta",
+      "product_index": 0,
+      "narration": "프로필 링크 3번이에요.",
+      "captions": [
+        "프로필 링크 3번"
+      ]
+    }
+  ],
+  "ai_image_prompts": [
+    "A Korean woman in her late 60s stepping carefully into a bright, clean Korean apartment bathroom; several thin clear anti-slip strips are stuck in parallel rows on the floor near the bathtub, wide shot.",
+    "Close-up of an older person's bare feet standing steadily on parallel clear anti-slip strips on a white bathroom floor, soft daylight."
+  ],
+  "source_notes": [
+    "상품: 3M 욕실 미끄럼방지 테이프(쿠팡 파트너스 링크 3번). 단점은 접착 테이프 일반 사용법(건조한 바닥에 부착) 기준"
+  ],
+  "approved": true
+}
