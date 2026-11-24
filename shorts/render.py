@@ -17,7 +17,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
 
 from .models import Bundle, Product, ShortScript
-from .tts import synthesize
+from .tts import synthesize_synced
 
 ROOT = Path(__file__).resolve().parent.parent
 FONTS = ROOT / "assets" / "fonts"
@@ -224,13 +224,18 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
     wavs, scenes_t, caps = [], [], []
     clock = 0.0
     for i, sc in enumerate(script.scenes):
-        audio, dur = synthesize(sc.narration, work / f"scene{i:02d}.mp3")
+        audio, dur, starts = synthesize_synced(sc.narration, sc.captions, work / f"scene{i:02d}.mp3")
         wav = work / f"scene{i:02d}.wav"
         src = ["-i", str(audio)] if audio else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
         _ffmpeg([*src, "-af", f"apad=whole_dur={dur:.3f}", "-t", f"{dur:.3f}", "-ar", "44100", "-ac", "2", str(wav)])
         wavs.append(wav)
         scenes_t.append((clock, clock + dur, min(sc.product_index, len(products) - 1)))
-        caps += _caption_times(sc.captions or [sc.narration], clock, dur)
+        if starts:  # TTS가 알려준 실제 발화 시각으로 자막을 맞춘다
+            ends = starts[1:] + [dur]
+            caps += [(clock + (0 if j == 0 else a), clock + b, c)
+                     for j, (a, b, c) in enumerate(zip(starts, ends, sc.captions))]
+        else:
+            caps += _caption_times(sc.captions or [sc.narration], clock, dur)
         clock += dur
     total = clock
     if total > MAX_TOTAL_SEC:
@@ -253,6 +258,9 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
     use_ai = use_clip or use_aiimg
     ai_canvases = [ImageOps.fit(Image.open(p).convert("RGB"), (W, H - BAND_H), Image.LANCZOS) for p in ai_imgs] \
         if use_aiimg else []
+    # 같은 AI 이미지의 가까운 컷 (가운데 약간 아래를 1.35배 확대) → 추가 비용 없이 컷 수를 늘린다
+    ai_close = [c.resize(c.size, Image.LANCZOS, box=(c.width * 0.13, c.height * 0.2, c.width * 0.87, c.height * 0.94))
+                for c in ai_canvases]
     # AI 장면은 후기·단점·CTA 전까지만, 그 뒤는 실제 상품 사진 (클립이 짧으면 마지막 프레임 유지)
     clip_end = next((st for (st, _, _), sc in zip(scenes_t, script.scenes)
                      if sc.kind in ("review", "downside", "cta")), total) if use_ai else 0.0
@@ -285,10 +293,12 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         if use_clip and now < clip_end:
             last_clip = next(clip_frames, last_clip)
             frame.paste(last_clip, (0, BAND_H))
-        elif use_aiimg and now < clip_end:  # AI 장면 이미지들을 AI 구간에 고르게 나눠 줌·패닝
+        elif use_aiimg and now < clip_end:  # 1.7초마다 컷: AI 장면 이미지를 차례로, 같은 이미지는 넓게→가깝게
             seg = max(clip_end / len(ai_canvases), 0.5)
             ak = min(int(now // seg), len(ai_canvases) - 1)
-            frame.paste(kenburns(ai_canvases[ak], ak, min((now - ak * seg) / seg, 1.0)), (0, BAND_H))
+            ck = int(now // CUT_SEC)
+            canvas = ai_canvases[ak] if (ck - int(ak * seg // CUT_SEC)) % 2 == 0 else ai_close[ak]
+            frame.paste(kenburns(canvas, ck, (now % CUT_SEC) / CUT_SEC), (0, BAND_H))
         else:
             frame.paste(kenburns(imgs[k % len(imgs)], k, p), (0, BAND_H))
         frame.paste(band, (0, 0))

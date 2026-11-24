@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import json
 from pathlib import Path
 
 import anthropic
@@ -30,13 +31,19 @@ def fetch(days: int = 28) -> Path:
         res = youtube().videos().list(part="snippet", id=",".join(ids[i:i + 50])).execute()
         titles.update({v["id"]: v["snippet"]["title"] for v in res.get("items", [])})
 
+    # 형식(A/B): 우리가 올린 영상은 out/*/upload.json 에 형식이 기록돼 있다
+    formats: dict[str, str] = {}
+    for up in (ROOT / "out").glob("*/upload.json"):
+        info = json.loads(up.read_text(encoding="utf-8"))
+        formats[info.get("id", "")] = info.get("_format", "")
+
     DATA.mkdir(exist_ok=True)
     path = DATA / f"analytics_{end.isoformat()}.csv"
     with path.open("w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
-        w.writerow(["title", *headers])
+        w.writerow(["title", "format", *headers])
         for r in rows:
-            w.writerow([titles.get(r[0], ""), *r])
+            w.writerow([titles.get(r[0], ""), formats.get(r[0], ""), *r])
     print(f"[analytics] {len(rows)}개 영상 → {path}")
     return path
 
@@ -51,7 +58,7 @@ def update_learnings(csv_path: Path) -> Path:
         output_config={"effort": "medium"},
         messages=[{"role": "user", "content": (
             "어르신 대상 생활용품 쇼츠 채널의 영상별 성과 표입니다. 평균 시청 비율(averageViewPercentage)과 "
-            "구독 증가를 가장 중요하게 보고, 다음 대본 작성에 반영할 교훈을 한국어 bullet 10줄 이내로 써 주세요. "
+            "구독 증가를 가장 중요하게 보고, format 열(aiimage 짧은 단품 / slides 25~30초 / 묶음 등)별 차이도 비교해서, 다음 대본 작성에 반영할 교훈을 한국어 bullet 10줄 이내로 써 주세요. "
             "근거가 되는 영상 제목을 괄호로 붙이고, 표본이 적으면 '가설'이라고 표시하세요.\n\n"
             f"기존 교훈:\n{prev}\n\n성과 표(CSV):\n{csv_path.read_text(encoding='utf-8-sig')}"
         )}],

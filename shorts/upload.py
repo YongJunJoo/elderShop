@@ -47,6 +47,7 @@ def upload(script: ShortScript, video: Path, out_dir: Path,
     while resp is None:
         _, resp = req.next_chunk()
     video_id = resp["id"]
+    resp["_format"] = script.format  # A/B 비교용 (분석 단계에서 형식별로 묶음)
     (out_dir / "upload.json").write_text(json.dumps(resp, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"[upload] https://youtube.com/shorts/{video_id}")
     if script.pinned_comment:
