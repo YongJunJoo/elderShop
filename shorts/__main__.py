@@ -114,6 +114,25 @@ def main() -> None:
         print(f"[script] 형식: {fmt}")
         path = save_script(generate_script(product, fmt=fmt), out)
         print(f"[script] {path} 저장. 검수 후 \"approved\": true 로 바꿔 주세요.")
+    elif args.cmd == "aiimage" and os.getenv("IMAGE_SOURCE", "manual") == "manual":
+        item, out = _load(args.product)
+        product = item.products[0] if isinstance(item, Bundle) else item
+        script = _script(out)
+        if not script.ai_image_prompts:
+            raise SystemExit("대본에 ai_image_prompts가 없습니다. --format aiimage 또는 list 로 대본을 만들어 주세요.")
+        folder = out / "ai_images"
+        folder.mkdir(parents=True, exist_ok=True)
+        tail = (" Vertical 9:16 photorealistic photo of a real Korean home, natural daylight, warm and calm."
+                " The product must look exactly like the attached reference photo. No text, no logos."
+                " No falls, injuries, hospitals or medical devices.")
+        blocks = [f"[{i:02d}.png]\n{pr}{tail}" for i, pr in enumerate(script.ai_image_prompts, 1)]
+        (folder / "prompts.txt").write_text("\n\n".join(blocks), encoding="utf-8")
+        print("=== 무료로 만들기: Flow(이미지 만들기) 또는 Gemini 앱에 아래를 하나씩 붙여넣기 ===\n")
+        print("\n\n".join(blocks))
+        if product.images:
+            print("\n참고 사진(같이 올리기): " + str(ROOT / product.images[0]))
+        print(f"\n받은 이미지를 {folder} 에 01.png, 02.png 이름으로 저장한 뒤 render 를 실행하세요.")
+        print("(유료 자동 생성은 .env 에 IMAGE_SOURCE=gemini)")
     elif args.cmd == "aiimage":
         from .ai_images import generate_images
         item, out = _load(args.product)
