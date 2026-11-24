@@ -1,5 +1,6 @@
 """사용법:
   python -m shorts ideas [--n 10] [--theme "겨울"]            # 상품 선정 + 상품별 아이디어 → data/ideas_날짜.md
+  python -m shorts links                                     # 쿠팡 파트너스 링크 반자동: 검색어 CSV → 붙여넣기 → --import
   python -m shorts images  products/bath-safety-mat.json     # 상품 사진 자동 수집 (쿠팡 파트너스 / 네이버 쇼핑 API)
   python -m shorts script  products/bath-safety-mat.json --format slides  # 25~30초 사진 전환형
   python -m shorts script  products/bath-safety-mat.json --format ai   # AI 장면형 대본
@@ -73,6 +74,11 @@ def main() -> None:
     i = sub.add_parser("ideas")
     i.add_argument("--n", type=int, default=10)
     i.add_argument("--theme", default="")
+    lk = sub.add_parser("links", help="쿠팡 파트너스 링크 반자동 연결 (CSV 내보내기/가져오기)")
+    lk.add_argument("--import", dest="do_import", action="store_true")
+    l1 = sub.add_parser("link", help="상품 한 개에 쿠팡 파트너스 링크 붙이기")
+    l1.add_argument("product")
+    l1.add_argument("url")
     a = sub.add_parser("analyze")
     a.add_argument("--days", type=int, default=28)
     args = ap.parse_args()
@@ -80,6 +86,13 @@ def main() -> None:
     if args.cmd == "ideas":
         from .ideas import generate_ideas, save_ideas
         save_ideas(generate_ideas(args.n, args.theme))
+        return
+    if args.cmd in ("links", "link"):
+        from .links import export_todo, import_todo, set_link
+        if args.cmd == "link":
+            set_link(Path(args.product), args.url)
+        else:
+            import_todo() if args.do_import else export_todo()
         return
     if args.cmd == "images":
         from .images import fetch_images

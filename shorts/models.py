@@ -79,6 +79,7 @@ class Idea(BaseModel):
     top_title: str = Field(description="상단 고정 2줄 제목, 줄마다 11자 이내, 줄바꿈 \\n")
     scene: str = Field(description="화면 아이디어(한국어): 어떤 장면을 보여줄지")
     format: Literal["ai", "aiimage", "list"]
+    coupang_keyword: str = Field(description="쿠팡 파트너스 링크 생성 화면에서 이 상품을 찾을 검색어 (짧고 일반적인 상품명)")
     evidence: str = Field(description="인기 근거(리뷰 수·판매 순위·출처 URL 등)")
     risk_notes: str = Field(description="광고·정책·효능 문구 위험, 영상 표현 어려움 등")
 
