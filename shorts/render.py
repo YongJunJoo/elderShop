@@ -241,13 +241,12 @@ def kenburns(canvas: Image.Image, k: int, p: float) -> Image.Image:
     return canvas.resize((cw, ch), Image.BILINEAR, box=(x0, y0, x0 + vw, y0 + vh))
 
 
-def _concat_clips(clips: list[Path], segs: list[tuple[int, float]], out: Path) -> Path:
-    """Flow 스토리 컷을 장면 순서대로 이어 붙인다. segs = [(컷 번호, 보여줄 초)]. 컷이 짧으면 마지막 프레임 유지."""
+def _concat_clips(clips: list[Path], segs: list[tuple[int, float, float]], out: Path) -> Path:
+    """Flow 스토리 컷을 장면 순서대로 이어 붙인다. segs = [(컷 번호, 보여줄 초, 컷 안 시작 초)]. 컷이 짧으면 마지막 프레임 유지."""
     ins, parts = [], []
-    for c in clips:
-        ins += ["-i", str(c)]
-    for i, (k, d) in enumerate(segs):
-        parts.append(f"[{k}:v]setpts=PTS-STARTPTS,fps={FPS},"
+    for i, (k, d, off) in enumerate(segs):  # 장면마다 입력을 따로 열어 같은 컷을 여러 번 써도 된다
+        ins += ["-ss", f"{off:.3f}", "-i", str(clips[k])]
+        parts.append(f"[{i}:v]setpts=PTS-STARTPTS,fps={FPS},"
                      f"scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,"
                      f"tpad=stop_mode=clone:stop_duration={d:.3f},trim=0:{d:.3f},setpts=PTS-STARTPTS[v{i}]")
     graph = ";".join(parts) + ";" + "".join(f"[v{i}]" for i in range(len(segs))) + f"concat=n={len(segs)}:v=1:a=0[o]"
@@ -348,13 +347,13 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         m, n = len(body), len(flow)
         shot_of = [(sc.shot - 1 if sc.shot else round(j * (n - 1) / max(m - 1, 1))) for j, (_, sc) in enumerate(body)]
         shot_of = [min(max(k, 0), n - 1) for k in shot_of]
-        segs = []  # (컷 번호, 길이)
-        for j, (st, _) in enumerate(body):
+        segs = []  # (컷 번호, 길이, 컷 안 시작 초)
+        for j, (st, sc) in enumerate(body):
             end = body[j + 1][0] if j + 1 < m else clip_end
-            if segs and segs[-1][0] == shot_of[j]:
-                segs[-1] = (shot_of[j], segs[-1][1] + end - st)
+            if segs and segs[-1][0] == shot_of[j] and sc.clip_start is None:
+                segs[-1] = (shot_of[j], segs[-1][1] + end - st, segs[-1][2])
             else:
-                segs.append((shot_of[j], end - st))
+                segs.append((shot_of[j], end - st, sc.clip_start or 0.0))
         ai_clip = _concat_clips(flow, segs, work / "flow_concat.mp4")
     clip_frames = _clip_reader(ai_clip) if use_clip else None
     last_clip = None
