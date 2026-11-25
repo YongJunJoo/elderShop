@@ -164,6 +164,17 @@ def subtitle_layer(text: str, t: Theme) -> Image.Image:
     return layer
 
 
+def badge_layer(text: str) -> Image.Image:
+    """장면 구석에 작게 띄우는 안내 문구 (예: ※ 재미로 만든 연출)."""
+    f = _font(FONT_R, 34)
+    tw = int(ImageDraw.Draw(Image.new("RGBA", (1, 1))).textlength(text, font=f))
+    layer = Image.new("RGBA", (tw + 36, 58), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    d.rounded_rectangle((0, 0, tw + 35, 57), radius=14, fill=(0, 0, 0, 120))
+    d.text((18, 29), text, font=f, fill=(255, 255, 255), anchor="lm")
+    return layer
+
+
 def list_layer(items: list[str], t: Theme) -> Image.Image:
     """리스트형: 번호 목록 패널 (번호는 노랑, 글자는 흰색)."""
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -388,6 +399,12 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         frame.paste(band, (0, 0))
         if list_overlay is not None:
             frame.paste(list_overlay, (0, 0), list_overlay)
+        badge = script.scenes[si].badge if si < len(script.scenes) else None
+        if badge:
+            if ("badge", badge) not in cap_cache:
+                cap_cache[("badge", badge)] = badge_layer(badge)
+            bl = cap_cache[("badge", badge)]
+            frame.paste(bl, (W - bl.width - 28, BAND_H + 24), bl)
         text = "" if is_list else caps[ci][2]
         if text:
             if text not in cap_cache:
