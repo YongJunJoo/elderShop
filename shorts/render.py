@@ -77,13 +77,14 @@ def draw_band(top_title: str, t: Theme, ai: bool = False) -> Image.Image:
     band = Image.new("RGB", (W, BAND_H), t.band)
     d = ImageDraw.Draw(band)
     lines = (top_title.split("\n") + [""])[:2]
-    size = 88
-    while size > 60 and max(d.textlength(l, font=_font(FONT_B, size)) for l in lines) > W - 120:
+    size = 110
+    while size > 64 and max(d.textlength(l, font=_font(FONT_B, size)) for l in lines) > W - 80:
         size -= 4
     f = _font(FONT_B, size)
-    d.text((W // 2, 195), lines[0], font=f, fill=t.title1, anchor="mm", stroke_width=2, stroke_fill=t.title1)
-    d.text((W // 2, 195 + int(size * 1.2)), lines[1], font=f, fill=t.title2, anchor="mm",
-           stroke_width=2, stroke_fill=t.title2)
+    y1 = BAND_H // 2 - int(size * 0.62)
+    d.text((W // 2, y1), lines[0], font=f, fill=t.title1, anchor="mm", stroke_width=4, stroke_fill=t.title1)
+    d.text((W // 2, y1 + int(size * 1.24)), lines[1], font=f, fill=t.title2, anchor="mm",
+           stroke_width=4, stroke_fill=t.title2)
     if os.getenv("SCREEN_DISCLOSURE", "off") == "on":  # 기본: 화면엔 안 넣고 제목·설명·고정댓글에 표시
         note = DISCLOSURE + (" · AI로 만든 장면" if ai else "")
         d.text((W // 2, BAND_H - 28), note, font=_font(FONT_R, 26 if ai else 28), fill=t.sub, anchor="mm")
@@ -155,11 +156,11 @@ def subtitle_layer(text: str, t: Theme) -> Image.Image:
     """영상형용 얇은 자막: 상자 없이 흰 글자 + 검은 테두리, 한 줄. 장면을 덜 가린다."""
     layer = Image.new("RGBA", (W, 300), (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
-    size = int(os.getenv("SUBTITLE_SIZE", "62"))
+    size = int(os.getenv("SUBTITLE_SIZE", "74"))
     while size > 44 and d.textlength(text, font=_font(FONT_B, size)) > W - 140:
         size -= 2
     d.text((W // 2, 150), text, font=_font(FONT_B, size), fill=(255, 255, 255), anchor="mm",
-           stroke_width=6, stroke_fill=(20, 20, 20))
+           stroke_width=8, stroke_fill=(15, 15, 15))
     return layer
 
 
@@ -392,7 +393,7 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
             if text not in cap_cache:
                 cap_cache[text] = subtitle_layer(text, t) if use_clip else \
                     bubble_layer(text, t) if use_ai else caption_layer(text, t)
-            cy = int(os.getenv("SUBTITLE_Y", "1600")) if use_clip else CAPTION_Y
+            cy = int(os.getenv("SUBTITLE_Y", "1420")) if use_clip else CAPTION_Y
             frame.paste(cap_cache[text], (0, cy - 150), cap_cache[text])
         proc.stdin.write(frame.tobytes())
     if clip_frames is not None:
