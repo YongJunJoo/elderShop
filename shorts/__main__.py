@@ -142,9 +142,15 @@ def main() -> None:
         item, out = _load(args.product)
         product = item.products[0] if isinstance(item, Bundle) else item
         script = _script(out)
-        if not script.ai_prompt:
-            raise SystemExit("대본에 ai_prompt가 없습니다. --format ai 로 대본을 만들어 주세요.")
         (out / "flow").mkdir(parents=True, exist_ok=True)
+        if script.ai_shots:
+            blocks = [f"[{i:02d}.mp4]\n{sh}" for i, sh in enumerate(script.ai_shots, 1)]
+            (out / "flow" / "prompts.txt").write_text("\n\n".join(blocks), encoding="utf-8")
+            print("=== Flow 스토리 컷 (Veo 3.1 Lite, 9:16, 컷마다 하나씩) ===\n" + "\n\n".join(blocks))
+            print(f"\n받은 영상을 {out / 'flow'} 에 01.mp4, 02.mp4 ... 순서 이름으로 넣고 render 하세요.")
+            return
+        if not script.ai_prompt:
+            raise SystemExit("대본에 ai_prompt/ai_shots가 없습니다. --format ai 로 대본을 만들어 주세요.")
         text = (script.ai_prompt + " The product must look exactly like the attached reference image. "
                 "Vertical 9:16, natural daylight, realistic Korean home, no on-screen text.")
         (out / "flow" / "prompt.txt").write_text(text, encoding="utf-8")

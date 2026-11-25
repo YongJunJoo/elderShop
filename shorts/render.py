@@ -217,6 +217,19 @@ def kenburns(canvas: Image.Image, k: int, p: float) -> Image.Image:
     return canvas.resize((cw, ch), Image.BILINEAR, box=(x0, y0, x0 + vw, y0 + vh))
 
 
+def _concat_clips(clips: list[Path], out: Path) -> Path:
+    """Flow 스토리 컷 여러 개(01.mp4, 02.mp4 ...)를 순서대로 이어 붙인다. 컷마다 FLOW_CUT_SEC(기본 6초)만 쓴다."""
+    cut = float(os.getenv("FLOW_CUT_SEC", "6"))
+    ins, parts = [], []
+    for i, c in enumerate(clips):
+        ins += ["-i", str(c)]
+        parts.append(f"[{i}:v]trim=0:{cut},setpts=PTS-STARTPTS,fps={FPS},"
+                     f"scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[v{i}]")
+    graph = ";".join(parts) + ";" + "".join(f"[v{i}]" for i in range(len(clips))) + f"concat=n={len(clips)}:v=1:a=0[o]"
+    _ffmpeg([*ins, "-filter_complex", graph, "-map", "[o]", "-an", "-c:v", "libx264", "-crf", "16", str(out)])
+    return out
+
+
 # ---------- 타임라인 ----------
 
 def _caption_times(captions: list[str], start: float, dur: float) -> list[tuple[float, float, str]]:
@@ -285,7 +298,8 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
 
     # AI 소스: Veo API 결과(ai_clip.mp4), Flow 등에서 직접 받은 영상(flow/*.mp4), AI 장면 이미지(ai_images/*)
     flow = sorted((out_dir / "flow").glob("*.mp4")) if (out_dir / "flow").exists() else []
-    ai_clip = flow[0] if flow else out_dir / "ai_clip.mp4"
+    ai_clip = (_concat_clips(flow, work / "flow_concat.mp4") if len(flow) > 1 else flow[0]) if flow \
+        else out_dir / "ai_clip.mp4"
     use_clip = script.format == "ai" and ai_clip.exists()
     ai_imgs = sorted(p for p in (out_dir / "ai_images").glob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg")) \
         if (out_dir / "ai_images").exists() else []

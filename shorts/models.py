@@ -63,6 +63,9 @@ class ShortScript(BaseModel):
     ai_prompt: Optional[str] = Field(
         None, description="ai 형식일 때만: AI 영상 모델에 줄 영어 장면 설명 (8초, 한 장면, 어르신이 상품을 쓰는 일상)"
     )
+    ai_shots: Optional[List[str]] = Field(
+        None, description="ai 형식 스토리 컷(2~3개)의 영어 Flow 프롬프트. 컷마다 같은 인물 설명을 반복"
+    )
     source_notes: List[str] = Field(description="후기·단점의 근거가 된 출처 요약(검수용, 영상에 안 나감)")
     approved: bool = Field(False, description="사람이 검수 후 true로 바꾼다")
 
