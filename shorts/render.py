@@ -299,7 +299,7 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
                 for c in ai_canvases]
     # AI 장면은 후기·단점·CTA 전까지만, 그 뒤는 실제 상품 사진 (클립이 짧으면 마지막 프레임 유지)
     clip_end = next((st for (st, _, _), sc in zip(scenes_t, script.scenes)
-                     if sc.kind in ("review", "downside", "cta")), total) if use_ai else 0.0
+                     if sc.kind in (("cta",) if use_aiimg else ("review", "downside", "cta"))), total) if use_ai else 0.0
     clip_frames = _clip_reader(ai_clip) if use_clip else None
     last_clip = None
     band = draw_band(script.top_title, t, ai=use_ai)

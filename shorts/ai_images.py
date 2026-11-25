@@ -17,7 +17,7 @@ from PIL import Image
 from .models import Product, ShortScript
 
 ROOT = Path(__file__).resolve().parent.parent
-MODEL = os.getenv("GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image")
+MODEL = os.getenv("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image")
 
 STYLE = (
     "Photorealistic vertical 9:16 photo of a real Korean home, natural daylight, warm and calm. "
