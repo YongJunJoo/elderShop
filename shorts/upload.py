@@ -29,7 +29,7 @@ def upload(script: ShortScript, video: Path, out_dir: Path,
         status["publishAt"] = publish_at
     body = {
         "snippet": {
-            "title": f"{script.title} #shorts"[:100],
+            "title": (("" if script.title.startswith("(광고)") else "(광고) ") + f"{script.title} #shorts")[:100],
             "description": description[:5000],
             "tags": tags[:30],
             "categoryId": CATEGORY_HOWTO_STYLE,

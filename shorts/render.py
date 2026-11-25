@@ -84,8 +84,9 @@ def draw_band(top_title: str, t: Theme, ai: bool = False) -> Image.Image:
     d.text((W // 2, 195), lines[0], font=f, fill=t.title1, anchor="mm", stroke_width=2, stroke_fill=t.title1)
     d.text((W // 2, 195 + int(size * 1.2)), lines[1], font=f, fill=t.title2, anchor="mm",
            stroke_width=2, stroke_fill=t.title2)
-    note = DISCLOSURE + (" · AI로 만든 장면" if ai else "")
-    d.text((W // 2, BAND_H - 28), note, font=_font(FONT_R, 26 if ai else 28), fill=t.sub, anchor="mm")
+    if os.getenv("SCREEN_DISCLOSURE", "off") == "on":  # 기본: 화면엔 안 넣고 제목·설명·고정댓글에 표시
+        note = DISCLOSURE + (" · AI로 만든 장면" if ai else "")
+        d.text((W // 2, BAND_H - 28), note, font=_font(FONT_R, 26 if ai else 28), fill=t.sub, anchor="mm")
     return band
 
 
@@ -203,7 +204,9 @@ def _duration(path: Path) -> float:
 
 
 def kenburns(canvas: Image.Image, k: int, p: float) -> Image.Image:
-    """컷 번호 k, 컷 안 진행도 p(0~1). 짝수 컷은 확대, 홀수 컷은 축소 + 좌우 패닝."""
+    """컷 번호 k, 컷 안 진행도 p(0~1). 짝수 컷은 확대, 홀수 컷은 축소 + 좌우 패닝. MOTION=static(기본)이면 정지."""
+    if os.getenv("MOTION", "static") == "static":
+        return canvas
     e = p * p * (3 - 2 * p)  # ease in-out
     z = 1 + (ZOOM - 1) * (e if k % 2 == 0 else 1 - e)
     cw, ch = canvas.size
