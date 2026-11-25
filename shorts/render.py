@@ -151,6 +151,18 @@ def bubble_layer(text: str, t: Theme) -> Image.Image:
     return layer
 
 
+def subtitle_layer(text: str, t: Theme) -> Image.Image:
+    """영상형용 얇은 자막: 상자 없이 흰 글자 + 검은 테두리, 한 줄. 장면을 덜 가린다."""
+    layer = Image.new("RGBA", (W, 300), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    size = int(os.getenv("SUBTITLE_SIZE", "62"))
+    while size > 44 and d.textlength(text, font=_font(FONT_B, size)) > W - 140:
+        size -= 2
+    d.text((W // 2, 150), text, font=_font(FONT_B, size), fill=(255, 255, 255), anchor="mm",
+           stroke_width=6, stroke_fill=(20, 20, 20))
+    return layer
+
+
 def list_layer(items: list[str], t: Theme) -> Image.Image:
     """리스트형: 번호 목록 패널 (번호는 노랑, 글자는 흰색)."""
     layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -378,8 +390,10 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
         text = "" if is_list else caps[ci][2]
         if text:
             if text not in cap_cache:
-                cap_cache[text] = bubble_layer(text, t) if use_ai else caption_layer(text, t)
-            frame.paste(cap_cache[text], (0, CAPTION_Y - 150), cap_cache[text])
+                cap_cache[text] = subtitle_layer(text, t) if use_clip else \
+                    bubble_layer(text, t) if use_ai else caption_layer(text, t)
+            cy = int(os.getenv("SUBTITLE_Y", "1600")) if use_clip else CAPTION_Y
+            frame.paste(cap_cache[text], (0, cy - 150), cap_cache[text])
         proc.stdin.write(frame.tobytes())
     if clip_frames is not None:
         clip_frames.close()
