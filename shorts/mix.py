@@ -16,7 +16,7 @@ VALID = ("aiimage", "ai", "slides")
 
 
 def target_mix() -> dict[str, float]:
-    raw = os.getenv("FORMAT_MIX", "aiimage:2,ai:1")
+    raw = os.getenv("FORMAT_MIX", "ai:4,list:1")
     mix = {}
     for part in raw.split(","):
         name, _, w = part.strip().partition(":")
