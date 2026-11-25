@@ -217,15 +217,16 @@ def kenburns(canvas: Image.Image, k: int, p: float) -> Image.Image:
     return canvas.resize((cw, ch), Image.BILINEAR, box=(x0, y0, x0 + vw, y0 + vh))
 
 
-def _concat_clips(clips: list[Path], out: Path) -> Path:
-    """Flow 스토리 컷 여러 개(01.mp4, 02.mp4 ...)를 순서대로 이어 붙인다. 컷마다 FLOW_CUT_SEC(기본 6초)만 쓴다."""
-    cut = float(os.getenv("FLOW_CUT_SEC", "6"))
+def _concat_clips(clips: list[Path], segs: list[tuple[int, float]], out: Path) -> Path:
+    """Flow 스토리 컷을 장면 순서대로 이어 붙인다. segs = [(컷 번호, 보여줄 초)]. 컷이 짧으면 마지막 프레임 유지."""
     ins, parts = [], []
-    for i, c in enumerate(clips):
+    for c in clips:
         ins += ["-i", str(c)]
-        parts.append(f"[{i}:v]trim=0:{cut},setpts=PTS-STARTPTS,fps={FPS},"
-                     f"scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[v{i}]")
-    graph = ";".join(parts) + ";" + "".join(f"[v{i}]" for i in range(len(clips))) + f"concat=n={len(clips)}:v=1:a=0[o]"
+    for i, (k, d) in enumerate(segs):
+        parts.append(f"[{k}:v]setpts=PTS-STARTPTS,fps={FPS},"
+                     f"scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,"
+                     f"tpad=stop_mode=clone:stop_duration={d:.3f},trim=0:{d:.3f},setpts=PTS-STARTPTS[v{i}]")
+    graph = ";".join(parts) + ";" + "".join(f"[v{i}]" for i in range(len(segs))) + f"concat=n={len(segs)}:v=1:a=0[o]"
     _ffmpeg([*ins, "-filter_complex", graph, "-map", "[o]", "-an", "-c:v", "libx264", "-crf", "16", str(out)])
     return out
 
@@ -298,8 +299,8 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
 
     # AI 소스: Veo API 결과(ai_clip.mp4), Flow 등에서 직접 받은 영상(flow/*.mp4), AI 장면 이미지(ai_images/*)
     flow = sorted((out_dir / "flow").glob("*.mp4")) if (out_dir / "flow").exists() else []
-    ai_clip = (_concat_clips(flow, work / "flow_concat.mp4") if len(flow) > 1 else flow[0]) if flow \
-        else out_dir / "ai_clip.mp4"
+    multi = len(flow) > 1
+    ai_clip = flow[0] if flow else out_dir / "ai_clip.mp4"
     use_clip = script.format == "ai" and ai_clip.exists()
     ai_imgs = sorted(p for p in (out_dir / "ai_images").glob("*") if p.suffix.lower() in (".png", ".jpg", ".jpeg")) \
         if (out_dir / "ai_images").exists() else []
@@ -316,7 +317,21 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
                 for c in ai_canvases]
     # AI 장면은 후기·단점·CTA 전까지만, 그 뒤는 실제 상품 사진 (클립이 짧으면 마지막 프레임 유지)
     clip_end = next((st for (st, _, _), sc in zip(scenes_t, script.scenes)
-                     if sc.kind in (("cta",) if use_aiimg else ("review", "downside", "cta"))), total) if use_ai else 0.0
+                     if sc.kind in (("cta",) if (use_aiimg or multi) else ("review", "downside", "cta"))), total) \
+        if use_ai else 0.0
+    if use_clip and multi:  # 스토리 컷: 대본 장면마다 맞는 컷을 그 장면 길이만큼 보여준다
+        body = [(st, sc) for (st, _, _), sc in zip(scenes_t, script.scenes) if st < clip_end]
+        m, n = len(body), len(flow)
+        shot_of = [(sc.shot - 1 if sc.shot else round(j * (n - 1) / max(m - 1, 1))) for j, (_, sc) in enumerate(body)]
+        shot_of = [min(max(k, 0), n - 1) for k in shot_of]
+        segs = []  # (컷 번호, 길이)
+        for j, (st, _) in enumerate(body):
+            end = body[j + 1][0] if j + 1 < m else clip_end
+            if segs and segs[-1][0] == shot_of[j]:
+                segs[-1] = (shot_of[j], segs[-1][1] + end - st)
+            else:
+                segs.append((shot_of[j], end - st))
+        ai_clip = _concat_clips(flow, segs, work / "flow_concat.mp4")
     clip_frames = _clip_reader(ai_clip) if use_clip else None
     last_clip = None
     band = draw_band(script.top_title, t, ai=use_ai)

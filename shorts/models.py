@@ -39,6 +39,7 @@ class Scene(BaseModel):
     kind: SceneKind
     product_index: int = Field(0, description="묶음 영상에서 이 장면이 보여줄 상품 순서(0부터). 단품은 0")
     narration: str = Field(description="TTS로 읽을 문장. 친근하고 빠른 말투, 짧은 문장")
+    shot: Optional[int] = Field(None, description="ai 스토리 형식: 이 장면에 보여줄 컷 번호(1부터, ai_shots 순서). cta는 비움")
     captions: List[str] = Field(
         description="narration을 순서대로 잘게 나눈 자막 조각. 조각마다 12자 이내, 이어 붙이면 narration 내용과 같아야 함"
     )
