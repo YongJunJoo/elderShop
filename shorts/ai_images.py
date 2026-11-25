@@ -31,14 +31,19 @@ def generate_images(script: ShortScript, product: Product, out_dir: Path) -> lis
         raise PermissionError("승인된 대본만 AI 이미지를 만듭니다 (비용이 들어서요).")
     if not script.ai_image_prompts:
         raise ValueError("대본에 ai_image_prompts가 없습니다. --format aiimage 로 대본을 다시 만들어 주세요.")
-    if not product.images:
-        raise ValueError("상품 사진이 없습니다. 먼저 `python -m shorts images` 를 실행해 주세요.")
+    list_mode = script.format == "list"
+    if not product.images and not list_mode:
+        raise ValueError("상품 사진이 없습니다. assets/products/<slug>/ 에 사진을 넣고 links --import 를 해 주세요.")
 
     from google import genai
     from google.genai import types
 
-    ref_path = Path(product.images[0])
-    ref = Image.open(ref_path if ref_path.is_absolute() else ROOT / ref_path).convert("RGB")
+    ref = None
+    if product.images and not list_mode:  # 리스트형은 주제 장면이라 상품 사진을 넣지 않는다
+        ref_path = Path(product.images[0])
+        ref = Image.open(ref_path if ref_path.is_absolute() else ROOT / ref_path).convert("RGB")
+    style = STYLE if ref is not None else STYLE.replace(
+        "The product in the attached photo must appear exactly as shown (same shape, color, pattern). ", "")
     client = genai.Client()
     folder = out_dir / "ai_images"
     folder.mkdir(parents=True, exist_ok=True)
@@ -46,7 +51,7 @@ def generate_images(script: ShortScript, product: Product, out_dir: Path) -> lis
     for i, scene in enumerate(script.ai_image_prompts, 1):
         resp = client.models.generate_content(
             model=MODEL,
-            contents=[f"{scene}\n\n{STYLE}", ref],
+            contents=[f"{scene}\n\n{style}"] + ([ref] if ref is not None else []),
             config=types.GenerateContentConfig(
                 response_modalities=["IMAGE"], image_config=types.ImageConfig(aspect_ratio="9:16")),
         )

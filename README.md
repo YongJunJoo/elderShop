@@ -82,3 +82,8 @@ TOP3 묶음 영상은 `{"slug": "...", "theme": "부모님 욕실 안전템", "p
 - Claude: 편당 리뷰 조사 + 대본 약 100~300원, 주간 분석 소액
 - Google TTS: 편당 약 300자라 월 무료 한도 안
 - YouTube API: 무료 (일일 할당량 10,000 유닛, 업로드 1건 ≈ 1,600 유닛 → 하루 약 6편)
+
+## Gemini API · 배경음악 (2026-11-25)
+- `.env`에 `GEMINI_API_KEY`가 있으면 `python -m shorts aiimage`가 장면 이미지를 자동 생성합니다(이미지형 2장, 리스트형 1장). 없으면 붙여넣을 프롬프트만 출력합니다(`IMAGE_SOURCE=manual`).
+- 음성: `TTS_PROVIDER=gemini` 이면 Gemini 음성(홈쇼핑 말투 지시, `GEMINI_TTS_VOICE`·`GEMINI_TTS_STYLE`). 기본 `google`(Cloud TTS, 말과 자막이 더 정확히 맞음).
+- 배경음악: Flow Music 등에서 만든 곡을 `assets/bgm/bright|calm|funny/`에 넣으면 상품 분위기(아이디어 각도·형식)에 맞는 폴더에서 골라 내레이션 아래에 깔고, 말할 때는 자동으로 줄입니다. 상품 JSON의 `"bgm"`으로 지정, `BGM=off`로 끄기, `BGM_VOLUME`(기본 0.25).

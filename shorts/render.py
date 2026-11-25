@@ -272,6 +272,13 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
     concat.write_text("".join(f"file '{w.name}'\n" for w in wavs), encoding="utf-8")
     audio_all = work / "audio.wav"
     _ffmpeg(["-f", "concat", "-safe", "0", "-i", str(concat), "-c", "copy", str(audio_all)])
+    from . import bgm as _bgm
+    first = products[0]
+    track = _bgm.pick(item.slug, getattr(item, "bgm", None) or getattr(first, "bgm", None),
+                      (first.idea or {}).get("angle"), script.format)
+    if track:
+        audio_all = _bgm.mix(audio_all, track, total, work / "audio_bgm.wav")
+        print(f"[render] BGM: {track.name}")
 
     # AI 소스: Veo API 결과(ai_clip.mp4), Flow 등에서 직접 받은 영상(flow/*.mp4), AI 장면 이미지(ai_images/*)
     flow = sorted((out_dir / "flow").glob("*.mp4")) if (out_dir / "flow").exists() else []

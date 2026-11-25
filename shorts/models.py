@@ -20,6 +20,7 @@ class Product(BaseModel):
     image_source: Optional[dict] = Field(None, description="images 단계가 사진을 가져온 출처(검수용)")
     idea: Optional[dict] = Field(None, description="ideas 단계가 붙인 아이디어(각도·훅·장면·형식). 대본이 이를 따른다")
     status: str = Field("approved", description="candidate(검토 전) | approved")
+    bgm: Optional[str] = Field(None, description="배경음악: 분위기 폴더(bright/calm/funny), 파일 경로, 또는 none")
 
 
 class Bundle(BaseModel):
@@ -28,6 +29,7 @@ class Bundle(BaseModel):
     slug: str
     theme: str = Field(description="묶음 주제, 예: 부모님 욕실 안전템")
     products: List[Product]
+    bgm: Optional[str] = None
 
 
 SceneKind = Literal["hook", "problem", "solution", "review", "downside", "cta"]

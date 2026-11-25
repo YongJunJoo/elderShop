@@ -114,7 +114,7 @@ def main() -> None:
         print(f"[script] 형식: {fmt}")
         path = save_script(generate_script(product, fmt=fmt), out)
         print(f"[script] {path} 저장. 검수 후 \"approved\": true 로 바꿔 주세요.")
-    elif args.cmd == "aiimage" and os.getenv("IMAGE_SOURCE", "manual") == "manual":
+    elif args.cmd == "aiimage" and os.getenv("IMAGE_SOURCE", "gemini" if os.getenv("GEMINI_API_KEY") else "manual") == "manual":
         item, out = _load(args.product)
         product = item.products[0] if isinstance(item, Bundle) else item
         script = _script(out)

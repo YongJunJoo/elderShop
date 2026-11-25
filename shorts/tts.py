@@ -1,6 +1,7 @@
 """장면별 내레이션 음성 만들기.
 
 TTS_PROVIDER=google  : Google Cloud Text-to-Speech (기본, 월 수십만 자 무료 범위)
+TTS_PROVIDER=gemini  : Gemini API 음성(GEMINI_API_KEY 필요, 홈쇼핑 말투 지시 가능)
 TTS_PROVIDER=none    : 음성 없이 글자 수로 길이만 계산 (미리보기용)
 """
 from __future__ import annotations
@@ -36,6 +37,36 @@ def _google(text: str, path: Path) -> None:
         ),
     )
     path.write_bytes(resp.audio_content)
+
+
+GEMINI_STYLE = os.getenv(
+    "GEMINI_TTS_STYLE",
+    "밝고 또렷한 홈쇼핑 쇼호스트처럼, 어르신이 알아듣기 쉽게 친근하고 약간 빠르게 읽어 주세요",
+)
+
+
+def _gemini(text: str, path: Path) -> None:
+    """Gemini TTS → PCM(24kHz mono) → mp3."""
+    from google import genai
+    from google.genai import types
+
+    resp = genai.Client().models.generate_content(
+        model=os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts"),
+        contents=f"{GEMINI_STYLE}: {text}",
+        config=types.GenerateContentConfig(
+            response_modalities=["AUDIO"],
+            speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=os.getenv("GEMINI_TTS_VOICE", "Kore")))),
+        ),
+    )
+    pcm = next((p.inline_data.data for c in (resp.candidates or []) for p in (c.content.parts or [])
+                if getattr(p, "inline_data", None)), None)
+    if not pcm:
+        raise RuntimeError("Gemini가 음성을 돌려주지 않았어요.")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", "-",
+                    "-af", "silenceremove=start_periods=1:start_threshold=-50dB,areverse,"
+                           "silenceremove=start_periods=1:start_threshold=-50dB,areverse",
+                    str(path)], input=pcm, check=True)
 
 
 def _mark_positions(narration: str, captions: list[str]) -> list[int] | None:
@@ -104,5 +135,8 @@ def synthesize(text: str, path: Path) -> tuple[Path | None, float]:
         return None, max(1.5, chars / SILENT_CHARS_PER_SEC) + GAP
     if provider == "google":
         _google(text, path)
+        return path, audio_duration(path) + GAP
+    if provider == "gemini":
+        _gemini(text, path)
         return path, audio_duration(path) + GAP
     raise ValueError(f"알 수 없는 TTS_PROVIDER: {provider}")
