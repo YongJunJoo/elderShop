@@ -50,7 +50,9 @@ def _gemini(text: str, path: Path) -> None:
     from google import genai
     from google.genai import types
 
-    resp = genai.Client().models.generate_content(
+    # 클라이언트를 변수에 붙들어 둔다(바로 쓰고 버리면 요청 중에 연결이 닫힌다). 음성 설정은 v1beta에서만 받는다.
+    client = genai.Client(http_options=types.HttpOptions(api_version="v1beta"))
+    resp = client.models.generate_content(
         model=os.getenv("GEMINI_TTS_MODEL", "gemini-2.5-flash-preview-tts"),
         contents=f"{GEMINI_STYLE}: {text}",
         config=types.GenerateContentConfig(
