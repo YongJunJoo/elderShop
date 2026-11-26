@@ -39,6 +39,9 @@ class Scene(BaseModel):
     kind: SceneKind
     product_index: int = Field(0, description="묶음 영상에서 이 장면이 보여줄 상품 순서(0부터). 단품은 0")
     narration: str = Field(description="TTS로 읽을 문장. 친근하고 빠른 말투, 짧은 문장")
+    duration: Optional[float] = Field(None, description="내레이션이 없는 장면의 길이(초). 노래만 나오는 장면 등")
+    music: Optional[str] = Field(None, description="이 장면에만 깔 노래 파일 경로 (예: assets/songs/twist.mp3). 내레이션이 없으면 크게 들림")
+    music_start: Optional[float] = Field(None, description="노래 파일의 몇 초 지점부터 쓸지")
     clip_start: Optional[float] = Field(None, description="ai 스토리: 이 장면에서 컷 영상을 몇 초 지점부터 보여줄지 (핵심 동작이 뒤에 있을 때)")
     badge: Optional[str] = Field(None, description="이 장면 동안 화면 구석에 작게 띄울 문구, 예: '※ 재미로 만든 연출'")
     shot: Optional[int] = Field(None, description="ai 스토리 형식: 이 장면에 보여줄 컷 번호(1부터, ai_shots 순서). cta는 비움")

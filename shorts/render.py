@@ -241,6 +241,30 @@ def kenburns(canvas: Image.Image, k: int, p: float) -> Image.Image:
     return canvas.resize((cw, ch), Image.BILINEAR, box=(x0, y0, x0 + vw, y0 + vh))
 
 
+def _scene_music(voice: Path, songs: list, out: Path) -> Path:
+    """장면별 노래를 그 장면 시각에 맞춰 목소리 오디오 위에 얹는다. songs = [(시작 초, 길이, Scene)]."""
+    vol = float(os.getenv("SONG_VOLUME", "0.9"))
+    ins, parts, mix = ["-i", str(voice)], [], ["[0:a]"]
+    for i, (st, dur, sc) in enumerate(songs, 1):
+        path = ROOT / sc.music if not Path(sc.music).is_absolute() else Path(sc.music)
+        if not path.exists():
+            print(f"[render] 노래 파일이 없어 건너뜁니다: {sc.music}")
+            continue
+        ins += ["-i", str(path)]
+        k = len(mix)
+        ms = int(st * 1000)
+        parts.append(f"[{k}:a]aformat=sample_rates=44100:channel_layouts=stereo,"
+                     f"atrim=start={sc.music_start or 0:.3f}:duration={dur:.3f},asetpts=PTS-STARTPTS,"
+                     f"afade=t=in:d=0.15,afade=t=out:st={max(dur - 0.4, 0):.3f}:d=0.4,volume={vol},"
+                     f"adelay={ms}|{ms}[m{k}]")
+        mix.append(f"[m{k}]")
+    if not parts:
+        return voice
+    graph = ";".join(parts) + ";" + "".join(mix) + f"amix=inputs={len(mix)}:duration=first:normalize=0[o]"
+    _ffmpeg([*ins, "-filter_complex", graph, "-map", "[o]", "-ar", "44100", "-ac", "2", str(out)])
+    return out
+
+
 def _concat_clips(clips: list[Path], segs: list[tuple[int, float, float]], out: Path) -> Path:
     """Flow 스토리 컷을 장면 순서대로 이어 붙인다. segs = [(컷 번호, 보여줄 초, 컷 안 시작 초)]. 컷이 짧으면 마지막 프레임 유지."""
     ins, parts = [], []
@@ -291,7 +315,10 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
     wavs, scenes_t, caps = [], [], []
     clock = 0.0
     for i, sc in enumerate(script.scenes):
-        audio, dur, starts = synthesize_synced(sc.narration, sc.captions, work / f"scene{i:02d}.mp3")
+        if sc.narration:
+            audio, dur, starts = synthesize_synced(sc.narration, sc.captions, work / f"scene{i:02d}.mp3")
+        else:  # 말 없는 장면(노래·효과음만)
+            audio, dur, starts = None, sc.duration or 3.0, None
         wav = work / f"scene{i:02d}.wav"
         src = ["-i", str(audio)] if audio else ["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo"]
         _ffmpeg([*src, "-af", f"apad=whole_dur={dur:.3f}", "-t", f"{dur:.3f}", "-ar", "44100", "-ac", "2", str(wav)])
@@ -302,7 +329,8 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
             caps += [(clock + (0 if j == 0 else a), clock + b, c)
                      for j, (a, b, c) in enumerate(zip(starts, ends, sc.captions))]
         else:
-            caps += _caption_times(sc.captions or [sc.narration], clock, dur)
+            caps += _caption_times(sc.captions, clock, dur) if sc.captions else \
+                _caption_times([sc.narration or ""], clock, dur)
         clock += dur
     total = clock
     if total > MAX_TOTAL_SEC:
@@ -312,6 +340,9 @@ def render(script: ShortScript, item: Product | Bundle, out_dir: Path, require_a
     concat.write_text("".join(f"file '{w.name}'\n" for w in wavs), encoding="utf-8")
     audio_all = work / "audio.wav"
     _ffmpeg(["-f", "concat", "-safe", "0", "-i", str(concat), "-c", "copy", str(audio_all)])
+    songs = [(st, en - st, sc) for (st, en, _), sc in zip(scenes_t, script.scenes) if sc.music]
+    if songs:
+        audio_all = _scene_music(audio_all, songs, work / "audio_songs.wav")
     from . import bgm as _bgm
     first = products[0]
     track = _bgm.pick(item.slug, getattr(item, "bgm", None) or getattr(first, "bgm", None),
