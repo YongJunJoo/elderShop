@@ -1,0 +1,19 @@
+{
+  "product_name": "욕실 미끄럼방지 매트",
+  "top_title": "욕실 미끄럼 걱정\n이거 하나면 끝",
+  "title": "욕실에서 미끄러질까 겁나시죠? 이거 하나 까세요",
+  "description": "이 영상은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.\n\n3. 욕실 미끄럼방지 매트",
+  "pinned_comment": "3. 욕실 미끄럼방지 매트\n채널 프로필 링크에서 번호로 찾으세요.",
+  "hashtags": ["살림템", "욕실안전", "미끄럼방지매트", "생활꿀템"],
+  "scenes": [
+    {"kind": "hook", "product_index": 0, "narration": "욕실 들어갈 때 미끄러질까 겁나시죠?", "captions": ["욕실 들어갈 때", "미끄러질까 겁나시죠?"]},
+    {"kind": "problem", "product_index": 0, "narration": "물기 있는 타일은 한 번 미끄러지면 크게 다치기 쉬워요.", "captions": ["물기 있는 타일은", "한 번 미끄러지면", "크게 다치기 쉬워요"]},
+    {"kind": "solution", "product_index": 0, "narration": "이 매트는 뒷면 흡착판이 바닥을 꽉 잡아줘서 밟아도 안 밀려요.", "captions": ["뒷면 흡착판이", "바닥을 꽉 잡아줘서", "밟아도 안 밀려요"]},
+    {"kind": "solution", "product_index": 0, "narration": "구멍으로 물이 쏙 빠져서 금방 말라요.", "captions": ["구멍으로 물이 쏙", "금방 말라요"]},
+    {"kind": "review", "product_index": 0, "narration": "구매하신 분들은 발 디딜 때 마음이 놓인다고 해요.", "captions": ["구매하신 분들은", "마음이 놓인다고 해요"]},
+    {"kind": "downside", "product_index": 0, "narration": "다만 가끔 떼어서 씻어줘야 물때가 안 껴요.", "captions": ["다만 가끔 떼서", "씻어줘야 해요"]},
+    {"kind": "cta", "product_index": 0, "narration": "프로필 링크 3번에 있어요.", "captions": ["프로필 링크 3번"]}
+  ],
+  "source_notes": ["샘플 대본: 실제 리뷰 조사 없이 형식 확인용으로 작성됨"],
+  "approved": true
+}

@@ -1,0 +1,9 @@
+__pycache__/
+.venv/
+.env
+secrets/
+out/
+data/*.csv
+assets/products/
+assets/bgm/
+assets/songs/
